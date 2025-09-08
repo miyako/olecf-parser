@@ -9,7 +9,7 @@
 
 static void usage(void)
 {
-    fprintf(stderr, "Usage:  libolecf-parser -r -i in -o out -\n\n");
+    fprintf(stderr, "Usage:  olecf-parser -r -i in -o out -\n\n");
     fprintf(stderr, "text extractor for msg documents\n\n");
     fprintf(stderr, " -%c path: %s\n", 'i' , "document to parse");
     fprintf(stderr, " -%c path: %s\n", 'o' , "text output (default=stdout)");
