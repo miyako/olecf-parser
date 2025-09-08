@@ -216,15 +216,31 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
                     uint32_t dictref = (u << 8) + l;
                     uint32_t len = (dictref & 0b0000000000001111) + 2;
                     uint32_t off = (dictref & 0b1111111111110000) >>4 ;
-                    std::string ref = DICT.substr(off, len);
-                    DICT  +=ref;
-                    rtf.insert(rtf.end(), ref.begin(), ref.end());
+                    if(off < DICT.length()){
+                      
+                        std::string ref = DICT.substr(off, len);
+                        DICT  +=ref;
+                        rtf.insert(rtf.end(), ref.begin(), ref.end());
+                        
+                    }else{
+//                        std::cerr << "offset" << off << " for length " + DICT.length() << std::endl;
+                        continue;
+                    }
+                    
                 }else{
-                    char v = buf.at(pos);
-                    pos+=1;
-                    r+=1;
-                    DICT  +=v;
-                    rtf.insert(rtf.end(), v);
+                    
+                    if(pos < buf.size()){
+                        
+                        char v = buf.at(pos);
+                        pos+=1;
+                        r+=1;
+                        DICT  +=v;
+                        rtf.insert(rtf.end(), v);
+                        
+                    }else{
+//                        std::cerr << "position" << pos << " for size " + buf.size() << std::endl;
+                        continue;
+                    }
                 }
                 if((r >= run_length) | (pos >= end)) {
                     break;
@@ -232,11 +248,13 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
             }
         }
         
-        if(RAWSIZE == rtf.size()) {
-            return 0;
-        }else{
-            return -1;//bad length
-        }
+        return 0;
+        
+//        if(RAWSIZE == rtf.size()) {
+//            
+//        }else{
+//            return -1;//bad length
+//        }
         
     }
     return -1;//not rtf
