@@ -180,7 +180,15 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
         
         std::string DICT = "{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss \\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
         
+        if(207 == DICT.length()) {
+//            std::cerr << "size ok" << std::endl;
+        }
+        
         rtf.clear();
+        /*
+         2.2.2.2 Output
+         The output stream MUST initially have a length of zero.
+         */
         
         size_t end = buf.size();
         
@@ -213,40 +221,46 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
                     uint8_t l = buf.at(pos+1);
                     pos+=2;
                     r+=2;
+                    //Read a 16-bit dictionary reference from the input in big-endian byte-order
                     uint32_t dictref = (u << 8) + l;
                     uint32_t len = (dictref & 0b0000000000001111) + 2;
                     uint32_t off = (dictref & 0b1111111111110000) >>4 ;
-                    if(off < DICT.length()){
-                      
-                        std::string ref = DICT.substr(off, len);
-                        DICT  +=ref;
-                        rtf.insert(rtf.end(), ref.begin(), ref.end());
-                        
-                    }else{
-//                        std::cerr << "offset" << off << " for length " + DICT.length() << std::endl;
+                    //Extract the offset from the dictionary reference, as specified in section 2.1.3.1.5.
+                    
+                    if(off == DICT.length()){
                         continue;
                     }
                     
+                    if(off > DICT.length()){
+                        continue;//this is abnormal
+                    }
+                    
+                    std::string ref = DICT.substr(off, len);
+                    DICT  +=ref;
+                    rtf.insert(rtf.end(), ref.begin(), ref.end());
+
                 }else{
                     
-                    if(pos < buf.size()){
-                        
-                        char v = buf.at(pos);
-                        pos+=1;
-                        r+=1;
-                        DICT  +=v;
-                        rtf.insert(rtf.end(), v);
-                        
-                    }else{
-//                        std::cerr << "position" << pos << " for size " + buf.size() << std::endl;
+                    if(pos >= end) {
                         continue;
                     }
+                                            
+                    char v = buf.at(pos);
+                    pos+=1;
+                    r+=1;
+                    DICT  +=v;
+                    rtf.insert(rtf.end(), v);
+
                 }
-                if((r >= run_length) | (pos >= end)) {
+                
+                if(r >= run_length) {
                     break;
                 }
             }
         }
+        
+        decompression_complete:
+        
         
         return 0;
         
