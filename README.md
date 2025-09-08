@@ -28,10 +28,13 @@ olecf-parser -i example.msg -o example.json
     "type: "msg",
     "message":
     {
-        "sender": "sender",
-        "recipient": "recipient",
+        "sender": {"name": "name", "address": "address"},
+        "recipient": {"name": "name", "address": "address"},
         "subject": "subject",
-        "text": "text"
+        "text": "text",
+        "rtf": "rtf",
+        "html": "html",
+        "headers": "headers"
     }
 }
 ```
