@@ -9,3 +9,29 @@
  
 # olecf-parser
 CLI tool to extract text from MSG
+
+## usage
+
+```
+olecf-parser -i example.msg -o example.json
+
+ -i path    : document to parse
+ -o path    : text output (default=stdout)
+ -          : use stdin for input
+ -r         : raw text output (default=json)
+```
+
+## output (JSON)
+
+```
+{
+    "type: "msg",
+    "message":
+    {
+        "sender": "sender",
+        "recipient": "recipient",
+        "subject": "subject",
+        "text": "text"
+    }
+}
+```
