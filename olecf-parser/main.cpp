@@ -113,7 +113,11 @@ static void utf16le_to_utf_8(std::vector<uint8_t>& buf, std::string& u8) {
         CFRelease(str);
     }
 #else
-    
+    int len = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)buf.data(), buf.size(), NULL, 0, NULL, NULL);
+    std::vector<uint8_t> bufu8(len + 1);
+    if (WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)buf.data(), buf.size(), (LPSTR)bufu8.data(), len, NULL, NULL)) {
+        u8 = (const char*)bufu8.data();
+    }
 #endif
 }
 
@@ -152,22 +156,28 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
     }
         
     uint32_t COMPSIZE =
-    buf.at(pos++)
-    | (buf.at(pos++) << 8 )
-    | (buf.at(pos++) << 16)
-    | (buf.at(pos++) << 24);
-    
+        (uint32_t)buf.at(0)
+        | ((uint32_t)buf.at(1) << 8)
+        | ((uint32_t)buf.at(2) << 16)
+        | ((uint32_t)buf.at(3) << 24);
+
+    pos += 4;
+
     uint32_t RAWSIZE =
-    buf.at(pos++)
-    | (buf.at(pos++) << 8 )
-    | (buf.at(pos++) << 16)
-    | (buf.at(pos++) << 24);
+        (uint32_t)buf.at(4)
+        | ((uint32_t)buf.at(5) << 8)
+        | ((uint32_t)buf.at(6) << 16)
+        | ((uint32_t)buf.at(7) << 24);
+
+    pos += 4;
 
     uint32_t COMPRESSED =
-    buf.at(pos++)
-    | (buf.at(pos++) << 8 )
-    | (buf.at(pos++) << 16)
-    | (buf.at(pos++) << 24);
+        (uint32_t)buf.at(8)
+        | ((uint32_t)buf.at(9) << 8)
+        | ((uint32_t)buf.at(10) << 16)
+        | ((uint32_t)buf.at(11) << 24);
+
+    pos += 4;
 
     if(COMPRESSED == 0x414c454d) {
         rtf = buf;
@@ -259,17 +269,10 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
             }
         }
         
-        decompression_complete:
-        
-        
+               
         return 0;
         
-//        if(RAWSIZE == rtf.size()) {
-//            
-//        }else{
-//            return -1;//bad length
-//        }
-        
+
     }
     return -1;//not rtf
 }
@@ -425,9 +428,9 @@ static void process_root(Document& document,
             libolecf_item_t *sub_item = NULL;
             if(libolecf_item_get_sub_item(root, i, &sub_item, &error) == 1) {
                 if(libolecf_item_get_utf8_name_size(sub_item, &utf8_string_size, &error) == 1) {
-                    std::vector<uint8_t>buf(utf8_string_size + 1);
-                    if(libolecf_item_get_utf8_name(sub_item, buf.data(), buf.size(), &error) == 1) {
-                        std::string property = (const char *)buf.data();
+                    std::vector<uint8_t>property_buf(utf8_string_size + 1);
+                    if(libolecf_item_get_utf8_name(sub_item, property_buf.data(), property_buf.size(), &error) == 1) {
+                        std::string property = (const char *)property_buf.data();
                         uint32_t size = 0;
                         if(libolecf_item_get_size(sub_item, &size, &error) == 1) {
                             
@@ -439,14 +442,14 @@ static void process_root(Document& document,
                                 if(property == uninteresting) goto read_sub_items;
                             }
 
-                            std::vector<uint8_t>buf(size);
-                            ssize_t len = libolecf_stream_read_buffer(sub_item, buf.data(), buf.size(), NULL);
+                            std::vector<uint8_t>item_value_buf(size);
+                            ssize_t len = libolecf_stream_read_buffer(sub_item, item_value_buf.data(), item_value_buf.size(), NULL);
                             
                             //PidTagTransportMessageHeaders
                             if(property == "__substg1.0_007D001F") {
                                 if(len != -1) {
                                     std::string headers;
-                                    utf16le_to_utf_8(buf, headers);
+                                    utf16le_to_utf_8(item_value_buf, headers);
                                     message.headers = headers;
                                 }
                                 goto read_sub_items;
@@ -458,7 +461,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0C1A001F") {
                                 if(len != -1) {
                                     std::string name;
-                                    utf16le_to_utf_8(buf, name);
+                                    utf16le_to_utf_8(item_value_buf, name);
                                     sender.name = name;
                                 }
                                 goto read_sub_items;
@@ -467,7 +470,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0042001F") {
                                 if(len != -1) {
                                     std::string name;
-                                    utf16le_to_utf_8(buf, name);
+                                    utf16le_to_utf_8(item_value_buf, name);
                                     sender.name = name;
                                 }
                                 goto read_sub_items;
@@ -476,7 +479,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0C1F001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     sender.address = address;
                                 }
                                 goto read_sub_items;
@@ -485,7 +488,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0065001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     sender.address = address;
                                 }
                                 goto read_sub_items;
@@ -497,7 +500,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_3003001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     recipient.address = address;
                                 }
                                 goto read_sub_items;
@@ -506,7 +509,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0078001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     recipient.address = address;
                                 }
                                 goto read_sub_items;
@@ -515,7 +518,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0076001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     recipient.address = address;
                                 }
                                 goto read_sub_items;
@@ -524,7 +527,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0040001F") {
                                 if(len != -1) {
                                     std::string name;
-                                    utf16le_to_utf_8(buf, name);
+                                    utf16le_to_utf_8(item_value_buf, name);
                                     recipient.name = name;
                                 }
                                 goto read_sub_items;
@@ -533,7 +536,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0044001F") {
                                 if(len != -1) {
                                     std::string name;
-                                    utf16le_to_utf_8(buf, name);
+                                    utf16le_to_utf_8(item_value_buf, name);
                                     recipient.name = name;
                                 }
                                 goto read_sub_items;
@@ -543,7 +546,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0E04001F") {
                                 if(len != -1) {
                                     std::string name;
-                                    utf16le_to_utf_8(buf, name);
+                                    utf16le_to_utf_8(item_value_buf, name);
                                     recipient.name = name;
                                 }
                                 goto read_sub_items;
@@ -551,9 +554,9 @@ static void process_root(Document& document,
      
                             //PidTagSubject:PT_UNICODE
                             if(property == "__substg1.0_0037001F") {
-                                if((len != -1) && (message.subject.length() == 0)) {
+                                if(len != -1) {
                                     std::string subject;
-                                    utf16le_to_utf_8(buf, subject);
+                                    utf16le_to_utf_8(item_value_buf, subject);
                                     message.subject = subject;
                                 }
                                 goto read_sub_items;
@@ -563,7 +566,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_5D01001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     sender.address = address;
                                 }
                                 goto read_sub_items;
@@ -573,7 +576,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_5D02001F") {
                                 if(len != -1) {
                                     std::string address;
-                                    utf16le_to_utf_8(buf, address);
+                                    utf16le_to_utf_8(item_value_buf, address);
                                     sender.address = address;
                                 }
                                 goto read_sub_items;
@@ -583,7 +586,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_0E1D001F") {
                                 if((len != -1) && (message.subject.length() == 0)) {
                                     std::string subject;
-                                    utf16le_to_utf_8(buf, subject);
+                                    utf16le_to_utf_8(item_value_buf, subject);
                                     message.subject = subject;
                                 }
                                 goto read_sub_items;
@@ -593,7 +596,7 @@ static void process_root(Document& document,
                             if(property == "__substg1.0_1000001F") {
                                 if(len != -1) {
                                     std::string text;
-                                    utf16le_to_utf_8(buf, text);
+                                    utf16le_to_utf_8(item_value_buf, text);
                                     message.text = text;
                                 }
                                 goto read_sub_items;
@@ -605,7 +608,7 @@ static void process_root(Document& document,
                                      https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxrtfcp/bf6f7e51-4939-4e16-9b44-6bd644e9ae5d
                                      */
                                     std::vector<uint8_t>rtf;
-                                    if(process_rtf(buf, rtf) == 0) {
+                                    if(process_rtf(item_value_buf, rtf) == 0) {
                                         message.rtf = std::string((const char *)rtf.data(), rtf.size());
                                     }
                                 }
@@ -614,7 +617,7 @@ static void process_root(Document& document,
                             //PidTagHtml:PT_BINARY
                             if(property == "__substg1.0_10130102") {
                                 if(len != -1) {
-                                    message.html = std::string((const char *)buf.data(), buf.size());
+                                    message.html = std::string((const char *)item_value_buf.data(), item_value_buf.size());
                                 }
                                 goto read_sub_items;
                             }
@@ -653,14 +656,14 @@ static void process_root(Document& document,
                                                     continue;
                                                 }
                                                 
-                                                std::vector<uint8_t>buf(size);
-                                                ssize_t len = libolecf_stream_read_buffer(sub_sub_item, buf.data(), buf.size(), NULL);
+                                                std::vector<uint8_t>_buf(size);
+                                                ssize_t len = libolecf_stream_read_buffer(sub_sub_item, _buf.data(), _buf.size(), NULL);
                                                 
                                                 //PidTagRecipientDisplayName:PT_UNICODE
                                                 if(property == "__substg1.0_5FF6001F") {
                                                     if(len != -1) {
                                                         std::string name;
-                                                        utf16le_to_utf_8(buf, name);
+                                                        utf16le_to_utf_8(_buf, name);
                                                         recipient.name = name;
                                                     }
                                                     continue;
@@ -669,13 +672,13 @@ static void process_root(Document& document,
                                                 if(property == "__substg1.0_3001001F") {
                                                     if(len != -1) {
                                                         std::string name;
-                                                        utf16le_to_utf_8(buf, name);
+                                                        utf16le_to_utf_8(_buf, name);
                                                         recipient.name = name;
                                                     }
                                                     continue;
                                                 }
                                                 
-//                                                std::cerr << "\t" << property << "(" << size << ")" << std::endl;
+                                                //std::cerr << "\t" << property << "(" << size << ")" << std::endl;
 
                                             }
                                         }
