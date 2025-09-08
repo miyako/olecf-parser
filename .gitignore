@@ -1,1 +1,6 @@
 .build/*
+.vs/*
+x64/Release/olecf-parser.pdb
+x64/Release/olecf-parser.exp
+x64/Release/olecf-parser.lib
+olecf-parser/x64/*
