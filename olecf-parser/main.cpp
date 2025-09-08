@@ -261,6 +261,7 @@ static void document_to_json(Document& document, std::string& text, bool rawText
         messageNode["text"] = document.message.text;
         messageNode["html"] = document.message.html;
         messageNode["rtf"] = document.message.rtf;
+        messageNode["headers"] = document.message.headers;
         
         Json::Value senderNode(Json::objectValue);
         Json::Value recipientNode(Json::objectValue);
