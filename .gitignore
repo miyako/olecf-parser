@@ -4,3 +4,7 @@ x64/Release/olecf-parser.pdb
 x64/Release/olecf-parser.exp
 x64/Release/olecf-parser.lib
 olecf-parser/x64/*
+x64/Debug/olecf-parser.pdb
+x64/Debug/olecf-parser.exp
+x64/Debug/olecf-parser.exe
+x64/Debug/olecf-parser.lib
