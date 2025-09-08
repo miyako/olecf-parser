@@ -1,2 +1,11 @@
+![platform](https://img.shields.io/static/v1?label=platform&message=mac-intel%20|%20mac-arm%20|%20win-64&color=blue)
+[![license](https://img.shields.io/github/license/miyako/olecf-parser)](LICENSE)
+![downloads](https://img.shields.io/github/downloads/miyako/olecf-parser/total)
+
+### Dependencies and Licensing
+
+* the source code of this CLI tool is licensed under the MIT license.
+* see [libolecf](https://github.com/libyal/libolecf/blob/main/COPYING) for the licensing of **libolecf** (LGPL-3.0).
+ 
 # olecf-parser
 CLI tool to extract text from MSG
