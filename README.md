@@ -33,7 +33,8 @@ olecf-parser -i example.msg -o example.json
         "subject": "subject",
         "text": "text",
         "rtf": "rtf",
-        "html": "html"
+        "html": "html",
+        "headers": "headers"
     }
 }
 ```
