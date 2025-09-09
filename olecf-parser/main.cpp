@@ -161,6 +161,10 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
         | ((uint32_t)buf.at(2) << 16)
         | ((uint32_t)buf.at(3) << 24);
 
+    if(COMPSIZE != (buf.size() - 0x4)) {
+        return -1;//corrupt file!
+    }
+    
     pos += 4;
 
     uint32_t RAWSIZE =
@@ -177,24 +181,33 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
         | ((uint32_t)buf.at(10) << 16)
         | ((uint32_t)buf.at(11) << 24);
 
-    pos += 4;
-
     if(COMPRESSED == 0x414c454d) {
         rtf = buf;
         return 0;//not compressed
     }
     
     pos+=4;
-    
+        
     if(COMPRESSED == 0x75465a4c) {
         
         std::string DICT = "{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss \\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
         
-        if(207 == DICT.length()) {
-//            std::cerr << "size ok" << std::endl;
-        }
+        //CRC
         
+        pos += 4;
+        
+        /*
+         2.1.3.1.4 Dictionary
+         The dictionary conceptually has a write offset,
+         a read offset, and an end offset,
+         all of which are zero-based unsigned values
+         */
+        
+        uint32_t ReadOffset  = 0;
+        uint32_t WriteOffset = DICT.length();//207
+
         rtf.clear();
+        
         /*
          2.2.2.2 Output
          The output stream MUST initially have a length of zero.
@@ -203,8 +216,10 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
         size_t end = buf.size();
         
         while(pos < end) {
+            
             uint8_t CONTROL = buf.at(pos);
             pos++;
+            
             bool bits[8];
             bits[0] = (CONTROL & 0b00000001);
             bits[1] = (CONTROL & 0b00000010);
@@ -223,56 +238,85 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
                     count0++;
                 }
             }
-            uint32_t run_length = (count1*2)+count0;
-            uint32_t r = 0;
+
             for(uint8_t b = 0; b < sizeof(bits); b++) {
+
                 if(bits[b]) {
+                    /*
+                     2.1.3.1.5 Dictionary Reference
+                     A dictionary reference is a 16-bit packed structure
+                     Offset (12 bits):
+                     This field contains an index from the beginning of the dictionary
+                     that indicates where the matched content will start.
+                     Length (4 bits):
+                     This value indicates the length of the matched content
+                     and is 2 bytes less than the actual length of the matched content.
+                     */
                     uint8_t u = buf.at(pos);
                     uint8_t l = buf.at(pos+1);
                     pos+=2;
-                    r+=2;
-                    //Read a 16-bit dictionary reference from the input in big-endian byte-order
                     uint32_t dictref = (u << 8) + l;
                     uint32_t len = (dictref & 0b0000000000001111) + 2;
-                    uint32_t off = (dictref & 0b1111111111110000) >>4 ;
-                    //Extract the offset from the dictionary reference, as specified in section 2.1.3.1.5.
+                    ReadOffset = (dictref & 0b1111111111110000) >>4 ;
                     
-                    if(off == DICT.length()){
-                        continue;
+                    std::string ref = DICT.substr(ReadOffset, len);
+                    
+                    uint32_t copied = len;
+                    uint32_t idx = 0;
+                    
+                    while (copied != 0) {
+                        
+                        char v = ref.at(idx);
+                        idx++;
+                        copied--;
+                        
+                        if(idx == ref.length()){
+                            idx=0;//repeat
+                        }
+                     
+                        if(DICT.length() < 4096) {
+                            DICT.push_back(v);
+                        }else{
+                            DICT[WriteOffset] = v;//circular
+                        }
+                                                
+                        if(WriteOffset == 4095) {
+                            WriteOffset=0;//circular
+                        }else{
+                            WriteOffset++;
+                        }
+                        rtf.insert(rtf.end(), v);
                     }
-                    
-                    if(off > DICT.length()){
-                        continue;//this is abnormal
-                    }
-                    
-                    std::string ref = DICT.substr(off, len);
-                    DICT  +=ref;
-                    rtf.insert(rtf.end(), ref.begin(), ref.end());
 
                 }else{
-                    
-                    if(pos >= end) {
-                        continue;
-                    }
                                             
-                    char v = buf.at(pos);
-                    pos+=1;
-                    r+=1;
-                    DICT  +=v;
+                    uint8_t v = buf.at(pos);
+                    pos++;
+                    
+                    if(DICT.length() < 4096) {
+                        DICT.push_back(v);
+                    }else{
+                        DICT[WriteOffset] = v;//circular
+                    }
+                                        
+                    if(WriteOffset == 4095) {
+                        WriteOffset=0;//circular
+                    }else{
+                        WriteOffset++;
+                    }
                     rtf.insert(rtf.end(), v);
-
                 }
-                
-                if(r >= run_length) {
-                    break;
+ 
+                if(rtf.size() == RAWSIZE) {
+                    //escape hatch
+                    goto end_of_decompression;
                 }
             }
         }
         
-               
+        end_of_decompression:
+              
         return 0;
-        
-
     }
     return -1;//not rtf
 }
@@ -286,6 +330,7 @@ static void document_to_json(Document& document, std::string& text, bool rawText
         text += document.message.recipient.name;
         text += document.message.recipient.address;
         text += document.message.subject;
+        text += document.message.headers;
         text += document.message.text;
     }else{
         Json::Value documentNode(Json::objectValue);
@@ -791,6 +836,12 @@ int main(int argc, OPTARG_T argv[]) {
     
     if(temp_input_path.length()) {
         _unlink(temp_input_path.c_str());
+    }
+    
+    FILE *f = _fopen("/Users/miyako/Desktop/test.rtf", _wb);
+    if(f) {
+        fwrite(document.message.rtf.c_str(), 1, document.message.rtf.length(), f);
+        fclose(f);
     }
     
     if(!output_path) {
