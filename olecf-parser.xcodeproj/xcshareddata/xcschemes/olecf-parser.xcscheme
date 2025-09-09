@@ -57,15 +57,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/miyako/Documents/GitHub/olecf-parser/examples/tst_unicode.msg"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/miyako/Documents/GitHub/olecf-parser/examples/simple\ sent.msg"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/miyako/Documents/GitHub/olecf-parser/examples/HTML\ mail\ with\ replyto\ and\ attachment\ and\ embedded\ image.msg"
+            argument = "/Users/miyako/Documents/GitHub/olecf-parser/examples/b.msg"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
