@@ -838,12 +838,6 @@ int main(int argc, OPTARG_T argv[]) {
         _unlink(temp_input_path.c_str());
     }
     
-    FILE *f = _fopen("/Users/miyako/Desktop/test.rtf", _wb);
-    if(f) {
-        fwrite(document.message.rtf.c_str(), 1, document.message.rtf.length(), f);
-        fclose(f);
-    }
-    
     if(!output_path) {
         std::cout << text << std::endl;
     }else{
