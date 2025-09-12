@@ -25,7 +25,16 @@
 #endif
 
 #ifdef __APPLE__
+#include <Foundation/Foundation.h>
+#include <AppKit/AppKit.h>
 #include <CoreFoundation/CoreFoundation.h>
+typedef struct
+{
+    NSData *src;
+    NSData *dst;
+    NSDictionary *src_options;
+    NSDictionary *dst_options;
+} ConverterContext;
 #endif
 
 #ifdef _WIN32

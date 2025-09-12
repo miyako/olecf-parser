@@ -58,11 +58,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "&quot;/Users/miyako/Documents/samples/ppt/06.07.12Herstellung der In-House-Fhk. und Einbindung in den REK 1.ppt&quot;"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/miyako/Documents/samples/ppt/Schaubilder.ppt"
-            isEnabled = "NO">
+            argument = "/Users/miyako/Desktop/test.msg"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-"

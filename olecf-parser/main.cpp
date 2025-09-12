@@ -556,28 +556,75 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
 }
 
 static void rtf_to_text(HWND hwnd, std::string& rtf, std::string& text) {
-
+#ifdef _WIN32
+    
     SETTEXTEX st = {};
     st.flags = ST_DEFAULT;
     st.codepage = CP_ACP;
     SendMessage(hwnd, EM_SETTEXTEX, (WPARAM)&st, (LPARAM)rtf.c_str());
-
+    
     int len = GetWindowTextLength(hwnd);
     //int len = SendMessage(hwnd, WM_GETTEXTLENGTH, 0, 0);
-
+    
     std::vector<uint16_t> buf((len + 1));
     GetWindowText(hwnd,(LPWSTR)buf.data(), buf.size());
     
     utf16_to_utf8((const uint8_t *)buf.data(), buf.size(), text);
     /*
-    GETTEXTEX gt = {};
-    gt.cb = buf.size();
-    gt.flags = GT_USECRLF;
-    gt.codepage = CP_UTF8;
-    SendMessage(hwnd, EM_GETTEXTEX, (WPARAM)&gt, (LPARAM)buf.data());
-    */
-
-   // text = (const char *)buf.data();
+     GETTEXTEX gt = {};
+     gt.cb = buf.size();
+     gt.flags = GT_USECRLF;
+     gt.codepage = CP_UTF8;
+     SendMessage(hwnd, EM_GETTEXTEX, (WPARAM)&gt, (LPARAM)buf.data());
+     */
+    
+    // text = (const char *)buf.data();
+#else
+    NSData *src = [[NSData alloc]initWithBytes:rtf.c_str() length:rtf.length()];
+    
+    if(src)
+    {
+        NSMutableDictionary *src_options = [[NSMutableDictionary alloc]initWithObjects:@[
+            NSRTFTextDocumentType,
+            [NSNumber numberWithFloat:60.0f]
+        ]
+                                                                               forKeys:@[
+                                                                                   NSDocumentTypeDocumentAttribute,
+                                                                                   NSTimeoutDocumentOption
+                                                                               ]];
+        if(src_options) {
+            NSMutableDictionary *dst_options = [[NSMutableDictionary alloc]initWithObjects:@[
+                                                                                             NSPlainTextDocumentType
+                                                                                             ]
+                                                                                   forKeys:@[
+                                                                                             NSDocumentTypeDocumentAttribute
+                                                                                             ]];
+            
+            if(dst_options) {
+                
+                NSError *error = nil;
+                NSAttributedString *dst = [[NSAttributedString alloc]initWithData:src
+                                                                          options:src_options
+                                                               documentAttributes:NULL
+                                                                            error:&error];
+                if(dst) {
+                    NSData *u8 = [dst dataFromRange:NSMakeRange(0, [dst length])
+                                 documentAttributes:dst_options
+                                              error:&error];
+//                    [dst release];
+                    if([u8 length])
+                    {
+                        text = std::string((const char *)[u8 bytes], [u8 length]);
+                    }
+                }
+                
+//                [dst_options release];
+            }
+//            [src_options release];
+        }
+//        [src release];
+    }
+#endif
 }
 
 static void document_to_json_msg(Document& document, std::string& text, bool rawText, HWND hwnd) {
@@ -594,8 +641,11 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
             text += document.message.text;
         }
         else {
+            
+            std::string _rtf = "{\\rtf1\\ansi\\ Hello, \\b World\\b0! This is \\i RichEdit\\i0  test.}";
             std::string t;
-            rtf_to_text(hwnd, document.message.rtf, t);
+            rtf_to_text(hwnd, _rtf, t);
+//            rtf_to_text(hwnd, document.message.rtf, t);
             text += t;
         }
     }else{
@@ -1518,6 +1568,7 @@ int main(int argc, OPTARG_T argv[]) {
     return 0;
 }
 
+#ifdef _WIN32
 int WINAPI wWinMain(
     HINSTANCE hInstance,      // Handle to the current instance of the application
     HINSTANCE hPrevInstance,  // Always NULL; legacy from 16-bit Windows
@@ -1535,3 +1586,4 @@ int WINAPI wWinMain(
 
     return 1;
 }
+#endif
