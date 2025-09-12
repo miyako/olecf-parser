@@ -70,11 +70,15 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-c"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "932"
-            isEnabled = "YES">
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "1252"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-r"
@@ -82,11 +86,15 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-o"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/miyako/Desktop/test.ppt.txt"
-            isEnabled = "YES">
+            argument = "/Users/miyako/Desktop/ppt-932.txt"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/miyako/Desktop/ppt-1252.txt"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

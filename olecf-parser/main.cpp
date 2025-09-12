@@ -7,13 +7,16 @@
 
 #include "olecf-parser.h"
 
+/*
 #ifdef __APPLE__
 #include "cpmap.h"
 #define MAX_LENGTH_FOR_ENCODING_NAME (255)
 #else
 #include <mlang.h>
 #endif
+*/
 
+/*
 static int guess_code_page(const char *data, size_t size) {
     
     int codepage = 1252;
@@ -124,6 +127,7 @@ static int guess_code_page(const char *data, size_t size) {
     
     return codepage;
 }
+*/
 
 #ifdef __APPLE__
 CFStringEncoding codepage_to_cfencoding(int cp) {
@@ -131,7 +135,6 @@ CFStringEncoding codepage_to_cfencoding(int cp) {
     switch(cp) {
    
         case 1361: return kCFStringEncodingWindowsKoreanJohab;
-            
         case 1258: return kCFStringEncodingWindowsVietnamese;
         case 1257: return kCFStringEncodingWindowsBalticRim;
         case 1256: return kCFStringEncodingWindowsArabic;
@@ -141,45 +144,41 @@ CFStringEncoding codepage_to_cfencoding(int cp) {
         case 1252: return kCFStringEncodingWindowsLatin1;
         case 1251: return kCFStringEncodingWindowsCyrillic;
         case 1250: return kCFStringEncodingWindowsLatin2;
-
-        case 950:  return kCFStringEncodingBig5;
-        case 949:  return kCFStringEncodingDOSKorean;
-        case 936:  return kCFStringEncodingDOSChineseSimplif;
-        case 932:  return kCFStringEncodingShiftJIS;
-
-        case 869:  return kCFStringEncodingDOSGreek2;
-        case 866:  return kCFStringEncodingDOSRussian;
-        case 865:  return kCFStringEncodingDOSNordic;
-        case 864:  return kCFStringEncodingDOSArabic;
-        case 863:  return kCFStringEncodingDOSCanadianFrench;
-        case 862: return kCFStringEncodingDOSHebrew;
-        case 861: return kCFStringEncodingDOSIcelandic;
-        case 860: return kCFStringEncodingDOSPortuguese;
-        case 857: return kCFStringEncodingDOSTurkish;
-        case 855: return kCFStringEncodingDOSCyrillic;
-        case 852: return kCFStringEncodingDOSLatin2;
-        case 851: return kCFStringEncodingDOSGreek1;
-        case 850: return kCFStringEncodingDOSLatin1;
-        case 775: return kCFStringEncodingDOSBalticRim;
-        case 737: return kCFStringEncodingDOSGreek;
-            
-        case 437: return kCFStringEncodingDOSLatinUS;
-            
-        case 37: return kCFStringEncodingEBCDIC_CP037;
+        case 950 : return kCFStringEncodingBig5;
+        case 949 : return kCFStringEncodingDOSKorean;
+        case 936 : return kCFStringEncodingDOSChineseSimplif;
+        case 932 : return kCFStringEncodingShiftJIS;
+        case 869 : return kCFStringEncodingDOSGreek2;
+        case 866 : return kCFStringEncodingDOSRussian;
+        case 865 : return kCFStringEncodingDOSNordic;
+        case 864 : return kCFStringEncodingDOSArabic;
+        case 863 : return kCFStringEncodingDOSCanadianFrench;
+        case 862 : return kCFStringEncodingDOSHebrew;
+        case 861 : return kCFStringEncodingDOSIcelandic;
+        case 860 : return kCFStringEncodingDOSPortuguese;
+        case 857 : return kCFStringEncodingDOSTurkish;
+        case 855 : return kCFStringEncodingDOSCyrillic;
+        case 852 : return kCFStringEncodingDOSLatin2;
+        case 851 : return kCFStringEncodingDOSGreek1;
+        case 850 : return kCFStringEncodingDOSLatin1;
+        case 775 : return kCFStringEncodingDOSBalticRim;
+        case 737 : return kCFStringEncodingDOSGreek;
+        case 437 : return kCFStringEncodingDOSLatinUS;
+        case 37  : return kCFStringEncodingEBCDIC_CP037;
         default:   return 1252; // default
     }
 }
 #endif
 
 static void utf16_to_utf8(const uint8_t *u16data, size_t u16size, std::string& u8) {
-#ifdef __APPLE__
     
+#ifdef __APPLE__
     CFStringRef str = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar *)u16data, u16size);
     if(str){
         size_t size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8) + sizeof(uint8_t);
-        std::vector<uint8_t> buf(size);
+        std::vector<uint8_t> buf(size+1);
         CFIndex len = 0;
-        CFStringGetBytes(str, CFRangeMake(0, CFStringGetLength(str)), kCFStringEncodingUTF8, 0, true, (UInt8 *)buf.data(), size, &len);
+        CFStringGetBytes(str, CFRangeMake(0, CFStringGetLength(str)), kCFStringEncodingUTF8, 0, true, (UInt8 *)buf.data(), buf.size(), &len);
         u8 = (const char *)buf.data();
         CFRelease(str);
     }else{
@@ -187,12 +186,10 @@ static void utf16_to_utf8(const uint8_t *u16data, size_t u16size, std::string& u
     }
 #else
     int len = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, NULL, 0, NULL, NULL);
-    
     if(len){
         std::vector<uint8_t> buf(len + 1);
-        if(WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, (LPSTR)buf.data(), len, NULL, NULL)){
-            u8 = (const char *)buf.data();
-        }
+        WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, (LPSTR)buf.data(), buf.size(), NULL, NULL));
+        u8 = (const char *)buf.data();
     }else{
         u8 = "";
     }
@@ -205,7 +202,6 @@ static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
     CFDataRef data = CFDataCreate(kCFAllocatorDefault,
                                       reinterpret_cast<const UInt8*>(ansi.data()),
                                       ansi.size());
-    
     CFStringRef str = CFStringCreateFromExternalRepresentation(
                                                                kCFAllocatorDefault,
                                                                data,
@@ -215,10 +211,11 @@ static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
         CFIndex len = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str),
                                                         kCFStringEncodingUTF8);
         std::vector<uint8_t> buf(len + 1);
-        if (CFStringGetCString(str, (char *)buf.data(), len, kCFStringEncodingUTF8)) {
+        if (CFStringGetCString(str, (char *)buf.data(), buf.size(), kCFStringEncodingUTF8)) {
             u8 = (const char *)buf.data();
         }else{
             u8 = "";
+            std::cerr << "ansi_to_utf8 fail!" << std::endl;
         }
         CFRelease(str);
     }else{
@@ -228,11 +225,8 @@ static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
     int len = MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), NULL, 0, NULL, NULL);
     if(len){
         std::vector<uint16_t> buf(len + sizeof(uint16_t));
-        if(MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), (LPWSTR)buf.data(), len, NULL, NULL)){
-            utf16_to_utf8((const uint8_t *)buf.data(), buf.size(), u8);
-        }else{
-            u8 = "";
-        }
+        MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), (LPWSTR)buf.data(), buf.size(), NULL, NULL));
+        utf16_to_utf8((const uint8_t *)buf.data(), buf.size(), u8);
     }else{
         u8 = "";
     }
@@ -243,11 +237,11 @@ static void usage(void)
 {
     fprintf(stderr, "Usage:  olecf-parser -r -i in -o out -\n\n");
     fprintf(stderr, "text extractor for msg documents\n\n");
-    fprintf(stderr, " -%c path: %s\n", 'i' , "document to parse");
-    fprintf(stderr, " -%c path: %s\n", 'o' , "text output (default=stdout)");
-    fprintf(stderr, " %c: %s\n", '-' , "use stdin for input");
-    fprintf(stderr, " -%c: %s\n", 'r' , "raw text output (default=json)");
-
+    fprintf(stderr, " -%c path        : %s\n", 'i' , "document to parse");
+    fprintf(stderr, " -%c path        : %s\n", 'o' , "text output (default=stdout)");
+    fprintf(stderr, " %c              : %s\n", '-' , "use stdin for input");
+    fprintf(stderr, " -%c             : %s\n", 'r' , "raw text output (default=json)");
+    fprintf(stderr, " -%c             : %s\n", 'c' , "ansi codepage (default=1252)");
     exit(1);
 }
 
@@ -622,24 +616,6 @@ static void document_to_json_ppt(Document& document, std::string& text, bool raw
             slidesNode.append(slideNode);
         }
         documentNode["slides"] = slidesNode;
-        
-//        Json::Value messageNode(Json::objectValue);
-//        messageNode["subject"] = document.message.subject;
-//        messageNode["text"] = document.message.text;
-//        messageNode["html"] = document.message.html;
-//        messageNode["rtf"] = document.message.rtf;
-//        messageNode["headers"] = document.message.headers;
-        
-//        Json::Value senderNode(Json::objectValue);
-//        Json::Value recipientNode(Json::objectValue);
-//        senderNode["name"] = document.message.sender.name;
-//        senderNode["address"] = document.message.sender.address;
-//        recipientNode["name"] = document.message.recipient.name;
-//        recipientNode["address"] = document.message.recipient.address;
-
-//        documentNode["sender"] = senderNode;
-//        documentNode["recipient"] = recipientNode;
-//        documentNode["message"] = messageNode;
         
         Json::StreamWriterBuilder writer;
         writer["indentation"] = "";
