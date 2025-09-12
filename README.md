@@ -12,11 +12,14 @@ CLI tool to extract text from MSG, PPT
 
 ## msg in raw mode
 
-|available format|strategy|
+sometimes an `.msg` file may not contain plain text body.
+
+|format|strategy to get plain text body|
 |-|-|
-|text|original|
-|rtf, no text|use `librtf` to convert `rtf`|
-|html, no text|use `libtidy` to convert `html`|
+|rtf|convert with `librtf`|
+|html|convert with `libtidy`|
+
+note that both converters lexically try to remove tags.
 
 ## usage
 
