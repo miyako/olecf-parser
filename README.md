@@ -8,7 +8,7 @@
 * see [libolecf](https://github.com/libyal/libolecf/blob/main/COPYING) for the licensing of **libolecf** (LGPL-3.0).
  
 # olecf-parser
-CLI tool to extract text from MSG
+CLI tool to extract text from MSG, PPT
 
 ## usage
 
