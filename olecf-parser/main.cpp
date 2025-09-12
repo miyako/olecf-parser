@@ -298,6 +298,7 @@ int getopt(int argc, OPTARG_T *argv, OPTARG_T opts) {
 #define ARGS (OPTARG_T)L"i:o:-rc:h"
 #define _atoi _wtoi
 #else
+#define HWND char*
 #define ARGS "i:o:-rc:h"
 #define _atoi atoi
 #endif
@@ -554,7 +555,32 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
     return -1;//not rtf
 }
 
-static void document_to_json_msg(Document& document, std::string& text, bool rawText) {
+static void rtf_to_text(HWND hwnd, std::string& rtf, std::string& text) {
+
+    SETTEXTEX st = {};
+    st.flags = ST_DEFAULT;
+    st.codepage = CP_ACP;
+    SendMessage(hwnd, EM_SETTEXTEX, (WPARAM)&st, (LPARAM)rtf.c_str());
+
+    int len = GetWindowTextLength(hwnd);
+    //int len = SendMessage(hwnd, WM_GETTEXTLENGTH, 0, 0);
+
+    std::vector<uint16_t> buf((len + 1));
+    GetWindowText(hwnd,(LPWSTR)buf.data(), buf.size());
+    
+    utf16_to_utf8((const uint8_t *)buf.data(), buf.size(), text);
+    /*
+    GETTEXTEX gt = {};
+    gt.cb = buf.size();
+    gt.flags = GT_USECRLF;
+    gt.codepage = CP_UTF8;
+    SendMessage(hwnd, EM_GETTEXTEX, (WPARAM)&gt, (LPARAM)buf.data());
+    */
+
+   // text = (const char *)buf.data();
+}
+
+static void document_to_json_msg(Document& document, std::string& text, bool rawText, HWND hwnd) {
     
     if(rawText){
         text = "";
@@ -564,7 +590,14 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
         text += document.message.recipient.address;
         text += document.message.subject;
         text += document.message.headers;
-        text += document.message.text;
+        if (document.message.text.length() != 0) {
+            text += document.message.text;
+        }
+        else {
+            std::string t;
+            rtf_to_text(hwnd, document.message.rtf, t);
+            text += t;
+        }
     }else{
         Json::Value documentNode(Json::objectValue);
         documentNode["type"] = document.type;
@@ -1319,17 +1352,54 @@ static void process_root(Document& document,
     document.message = message;
 }
 
+
 int main(int argc, OPTARG_T argv[]) {
         
     const OPTARG_T input_path  = NULL;
     const OPTARG_T output_path = NULL;
     
 #if defined(_WIN32)
-        std::wstring temp_input_path;
+    std::wstring temp_input_path;
 #else
-        std::string  temp_input_path;
+    std::string  temp_input_path;
 #endif
-    
+
+    bool rtf_converter_ready = false;
+
+    HWND hwnd = NULL;
+
+#ifdef _WIN32
+
+    //HMODULE hmodule = LoadLibrary(L"msftedit.dll"); 
+    HMODULE hmodule = LoadLibrary(L"Riched20.dll");
+
+    if (hmodule)
+    {
+        /*
+        INITCOMMONCONTROLSEX icex = {};
+        icex.dwSize = sizeof(icex);
+        icex.dwICC = ICC_WIN95_CLASSES;
+        InitCommonControlsEx(&icex);
+        */
+       
+        hwnd = CreateWindowExW(
+            0, L"RichEdit20W", nullptr,
+            WS_CHILD | ES_MULTILINE,
+            0, 0, 0, 0,
+            HWND_MESSAGE, // message-only parent works with RichEdit 2.0
+            nullptr,
+            GetModuleHandle(nullptr),
+            nullptr);
+        /*
+        if (hwnd)
+        {
+            DWORD err = GetLastError();
+            std::cerr << "CreateWindowEx" << err << std::endl;
+        }
+        */
+    }
+#endif
+
     std::vector<unsigned char>msg_data(0);
 
     int ch;
@@ -1406,7 +1476,7 @@ int main(int argc, OPTARG_T argv[]) {
             if (libolecf_file_get_root_item(file, &root, &error) == 1) {
                 process_root(document, root, codepage);
                 if(document.type == "msg"){
-                    document_to_json_msg(document, text, rawText);
+                    document_to_json_msg(document, text, rawText, hwnd);
                 }
                 if(document.type == "ppt"){
                     document_to_json_ppt(document, text, rawText);
@@ -1434,5 +1504,34 @@ int main(int argc, OPTARG_T argv[]) {
         }
     }
     
+#if defined(_WIN32)
+    if (hwnd) {
+        DestroyWindow(hwnd);
+        hwnd = NULL;
+    }
+    if (hmodule) {
+        FreeLibrary(hmodule);
+        hmodule = NULL;
+    }
+#endif
+
     return 0;
+}
+
+int WINAPI wWinMain(
+    HINSTANCE hInstance,      // Handle to the current instance of the application
+    HINSTANCE hPrevInstance,  // Always NULL; legacy from 16-bit Windows
+    LPWSTR lpCmdLine,         // Command-line arguments as a single Unicode string
+    int nShowCmd              // Flags that specify how the window is to be shown
+) {
+
+    int argc;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv) {
+        return main(argc, argv);
+    }
+
+    usage();
+
+    return 1;
 }

@@ -17,6 +17,8 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <richedit.h>
+#include <commctrl.h>
 #include <tchar.h>
 #else
 #include <unistd.h>
@@ -34,7 +36,7 @@
 #define _libolecf_file_open libolecf_file_open
 #endif
 
-#ifdef __GNUC__
+#ifdef __APPLE__
 #define _fopen fopen
 #define _fseek fseek
 #define _ftell ftell
@@ -48,7 +50,7 @@
 #define _wb L"wb"
 #endif
 
-#ifdef __GNUC__
+#ifdef __APPLE__
 #define OPTARG_T char*
 #include <getopt.h>
 #else
@@ -56,6 +58,7 @@
 #define _WINGETOPT_H_
 #define OPTARG_T wchar_t*
 #define main wmain
+#include <shellapi.h> 
 #define NULL    0
 #define EOF    (-1)
 #define ERR(s, c)    if(opterr){\
