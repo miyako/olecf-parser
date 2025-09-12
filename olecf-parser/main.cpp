@@ -559,7 +559,14 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
     return -1;//not rtf
 }
 
-static void rtf_to_text(HWND hwnd, std::string& rtf, std::string& text) {
+static void rtf_to_html(std::string& rtf, std::string& text) {
+    
+        RtfReader::RtfString2HtmlString(text, rtf);
+//        RtfReader::RtfString2TextString(text, rtf);
+}
+
+#if WITH_NATIVE_RTF_CONVERT
+static void rtf_to_text_platform(HWND hwnd, std::string& rtf, std::string& text) {
 #ifdef _WIN32
     
     SETTEXTEX st = {};
@@ -630,8 +637,13 @@ static void rtf_to_text(HWND hwnd, std::string& rtf, std::string& text) {
     }
 #endif
 }
+#endif
 
-static void document_to_json_msg(Document& document, std::string& text, bool rawText, HWND hwnd) {
+static void document_to_json_msg(Document& document, std::string& text, bool rawText) {
+    
+    if((document.message.html.length() == 0) && (document.message.rtf.length() != 0)) {
+        rtf_to_html(document.message.rtf, document.message.html);
+    }
     
     if(rawText){
         text = "";
@@ -645,12 +657,13 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
             text += document.message.text;
         }
         else {
-            
-            std::string _rtf = "{\\rtf1\\ansi\\ Hello, \\b World\\b0! This is \\i RichEdit\\i0  test.}";
-            std::string t;
-//            rtf_to_text(hwnd, _rtf, t);
-            rtf_to_text(hwnd, document.message.rtf, t);
-            text += t;
+            if (document.message.rtf.length() != 0) {
+                text += document.message.rtf;
+            }else{
+                if (document.message.html.length() != 0) {
+                    text += document.message.html;
+                }
+            }
         }
     }else{
         Json::Value documentNode(Json::objectValue);
@@ -1456,6 +1469,7 @@ int main(int argc, OPTARG_T argv[]) {
     int ch;
     std::string text;
     bool rawText = false;
+    
     int codepage = 1252;
     
     while ((ch = getopt(argc, argv, ARGS)) != -1){
@@ -1527,7 +1541,7 @@ int main(int argc, OPTARG_T argv[]) {
             if (libolecf_file_get_root_item(file, &root, &error) == 1) {
                 process_root(document, root, codepage);
                 if(document.type == "msg"){
-                    document_to_json_msg(document, text, rawText, hwnd);
+                    document_to_json_msg(document, text, rawText);
                 }
                 if(document.type == "ppt"){
                     document_to_json_ppt(document, text, rawText);
@@ -1544,13 +1558,7 @@ int main(int argc, OPTARG_T argv[]) {
     if(temp_input_path.length()) {
         _unlink(temp_input_path.c_str());
     }
-    
-    FILE *f = _fopen("/Users/miyako/Desktop/test.rtf", _wb);
-    if(f) {
-        fwrite(document.message.rtf.c_str(), 1, document.message.rtf.length(), f);
-        fclose(f);
-    }
-    
+        
     if(!output_path) {
         std::cout << text << std::endl;
     }else{

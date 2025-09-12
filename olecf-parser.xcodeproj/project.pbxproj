@@ -13,6 +13,8 @@
 		D157F3122E612DD500DF46D3 /* libjsoncpp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D157F30C2E612DD500DF46D3 /* libjsoncpp.a */; };
 		D17C73DD2E73D9B600DD40FB /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73DC2E73D9B600DD40FB /* CoreServices.framework */; };
 		D17C73DF2E742E6800DD40FB /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73DE2E742E6800DD40FB /* AppKit.framework */; };
+		D17C73EB2E7440E800DD40FB /* librtf.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73EA2E7440E800DD40FB /* librtf.a */; };
+		D17C73ED2E7440FF00DD40FB /* librtfcpp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73EC2E7440FF00DD40FB /* librtfcpp.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -36,13 +38,15 @@
 		D164789E2E61216B00FC9914 /* olecf-config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "olecf-config.xcconfig"; sourceTree = "<group>"; };
 		D17C73DC2E73D9B600DD40FB /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = System/Library/Frameworks/CoreServices.framework; sourceTree = SDKROOT; };
 		D17C73DE2E742E6800DD40FB /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		D17C73EA2E7440E800DD40FB /* librtf.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = librtf.a; path = a/librtf.a; sourceTree = "<group>"; };
+		D17C73EC2E7440FF00DD40FB /* librtfcpp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = librtfcpp.a; path = a/librtfcpp.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D16478962E611F7700FC9914 /* olecf-parser */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			explicitFileTypes = {
-				main.cpp = sourcecode.cpp.objcpp;
+				main.cpp = sourcecode.cpp.cpp;
 			};
 			path = "olecf-parser";
 			sourceTree = "<group>";
@@ -54,6 +58,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D17C73ED2E7440FF00DD40FB /* librtfcpp.a in Frameworks */,
+				D17C73EB2E7440E800DD40FB /* librtf.a in Frameworks */,
 				D17C73DF2E742E6800DD40FB /* AppKit.framework in Frameworks */,
 				D17C73DD2E73D9B600DD40FB /* CoreServices.framework in Frameworks */,
 				D107CDB32E6EC40400791C2B /* CoreFoundation.framework in Frameworks */,
@@ -69,6 +75,8 @@
 		D157F30B2E612DD500DF46D3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D17C73EC2E7440FF00DD40FB /* librtfcpp.a */,
+				D17C73EA2E7440E800DD40FB /* librtf.a */,
 				D17C73DE2E742E6800DD40FB /* AppKit.framework */,
 				D17C73DC2E73D9B600DD40FB /* CoreServices.framework */,
 				D107CDB22E6EC40400791C2B /* CoreFoundation.framework */,

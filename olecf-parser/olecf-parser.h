@@ -1,6 +1,9 @@
 #ifndef __OLECF_PARSER_H__
 #define __OLECF_PARSER_H__
 
+//experimental
+#define WITH_NATIVE_RTF_CONVERT 0
+
 #include <json/json.h>
 #include <sstream>
 #include <iostream>
@@ -25,17 +28,15 @@
 #endif
 
 #ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
+#if WITH_NATIVE_RTF_CONVERT
 #include <Foundation/Foundation.h>
 #include <AppKit/AppKit.h>
-#include <CoreFoundation/CoreFoundation.h>
-typedef struct
-{
-    NSData *src;
-    NSData *dst;
-    NSDictionary *src_options;
-    NSDictionary *dst_options;
-} ConverterContext;
 #endif
+#endif
+
+#include "librtf.h"
+#include "RtfReader.h"
 
 #ifdef _WIN32
 #define _unlink DeleteFile
