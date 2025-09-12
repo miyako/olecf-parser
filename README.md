@@ -12,14 +12,7 @@ CLI tool to extract text from MSG, PPT
 
 ## msg in raw mode
 
-sometimes an `.msg` file may not contain plain text body.
-
-|format|strategy to get plain text body|
-|-|-|
-|rtf|convert with `librtf`|
-|html|convert with `libtidy`|
-
-note that both converters lexically try to remove tags.
+sometimes an `.msg` file may not contain plain text body. in such cases, the plain text body is produced by converting the `RTF` or `HTML` body. both `lexbor` and `tidy` parsers are included but `tidy` is used when an `HTML` body exists. native API (`NSAttributedString` on macOS and `RichEdit20W` on Windows) is used to convert `RTF` to plain text. `librtf` is included but not used because of limited codepage support (extended characters are lost).   
 
 ## usage
 
