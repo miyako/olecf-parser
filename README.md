@@ -10,14 +10,13 @@
 # olecf-parser
 CLI tool to extract text from MSG, PPT
 
-## msg
+## msg in raw mode
 
-1. use `libolecf` to parse `.msg` binary structure
-2. decompress `rtf` according to `[MS-OXRTFCP]` algorithm
-3. use `librtf` to convert `rtf` to `html`
-4. use `libtidy` to convert `rtf` to `txt`
-5. return all `3` body formats in `JSON` mode
-6. return `txt` in `RAW` mode (original or converted from `rtf` or `html`)
+|available format|strategy|
+|-|-|
+|text|original|
+|rtf, no text|use `librtf` to convert `rtf`|
+|html, no text|use `libtidy` to convert `html`|
 
 ## usage
 
