@@ -38,3 +38,13 @@ olecf-parser -i example.msg -o example.json
     }
 }
 ```
+
+```
+{
+    "type: "ppt",
+    "slides":
+    [
+        "text": ["text", "text", "text"]
+    ]
+}
+```
