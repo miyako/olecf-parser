@@ -188,7 +188,7 @@ static void utf16_to_utf8(const uint8_t *u16data, size_t u16size, std::string& u
     int len = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, NULL, 0, NULL, NULL);
     if(len){
         std::vector<uint8_t> buf(len + 1);
-        WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, (LPSTR)buf.data(), buf.size(), NULL, NULL));
+        WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, (LPSTR)buf.data(), buf.size(), NULL, NULL);
         u8 = (const char *)buf.data();
     }else{
         u8 = "";
@@ -222,10 +222,10 @@ static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
         u8 = "";
     }
 #else
-    int len = MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), NULL, 0, NULL, NULL);
+    int len = MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), NULL, 0);
     if(len){
         std::vector<uint16_t> buf(len + sizeof(uint16_t));
-        MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), (LPWSTR)buf.data(), buf.size(), NULL, NULL));
+        MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), (LPWSTR)buf.data(), buf.size());
         utf16_to_utf8((const uint8_t *)buf.data(), buf.size(), u8);
     }else{
         u8 = "";
@@ -296,8 +296,10 @@ int getopt(int argc, OPTARG_T *argv, OPTARG_T opts) {
     return(c);
 }
 #define ARGS (OPTARG_T)L"i:o:-rc:h"
+#define _atoi _wtoi
 #else
 #define ARGS "i:o:-rc:h"
+#define _atoi atoi
 #endif
 
 struct Account {
@@ -1344,7 +1346,7 @@ int main(int argc, OPTARG_T argv[]) {
                 output_path = optarg;
                 break;
             case 'c':
-                codepage = atoi(optarg);
+                codepage = _atoi(optarg);
                 break;
             case '-':
             {

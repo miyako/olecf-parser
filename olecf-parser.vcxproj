@@ -157,6 +157,7 @@
       <AdditionalIncludeDirectories>include;include\libxml2;include\libxml2\libxml</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>4819</DisableSpecificWarnings>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
