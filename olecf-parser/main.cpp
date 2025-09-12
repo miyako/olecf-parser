@@ -215,7 +215,6 @@ static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
             u8 = (const char *)buf.data();
         }else{
             u8 = "";
-            std::cerr << "ansi_to_utf8 fail!" << std::endl;
         }
         CFRelease(str);
     }else{
@@ -378,6 +377,7 @@ static int create_temp_file_path(std::string& path) {
 #endif
 
 static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
+    
     /*
      3.1.1.2 Compressed RTF Header
      https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxrtfcp/742dec57-50e8-460b-9aaf-504816a7c3de
@@ -430,23 +430,11 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
         
         pos += 4;
         
-        /*
-         2.1.3.1.4 Dictionary
-         The dictionary conceptually has a write offset,
-         a read offset, and an end offset,
-         all of which are zero-based unsigned values
-         */
-        
-        uint32_t ReadOffset  = 0;
-        uint32_t WriteOffset = DICT.length();//207
+        size_t ReadOffset  = 0;
+        size_t WriteOffset = DICT.length();//207
 
         rtf.clear();
-        
-        /*
-         2.2.2.2 Output
-         The output stream MUST initially have a length of zero.
-         */
-        
+                
         size_t end = buf.size();
         
         while(pos < end) {
@@ -476,69 +464,85 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
             for(uint8_t b = 0; b < sizeof(bits); b++) {
 
                 if(bits[b]) {
-                    /*
-                     2.1.3.1.5 Dictionary Reference
-                     A dictionary reference is a 16-bit packed structure
-                     Offset (12 bits):
-                     This field contains an index from the beginning of the dictionary
-                     that indicates where the matched content will start.
-                     Length (4 bits):
-                     This value indicates the length of the matched content
-                     and is 2 bytes less than the actual length of the matched content.
-                     */
+                    //If the value of the bit is 1:
+                    //Read a 16-bit dictionary reference from the input in big-endian byte-order.
                     uint8_t u = buf.at(pos);
                     uint8_t l = buf.at(pos+1);
                     pos+=2;
+                    
+                    //Extract the offset from the dictionary reference
                     uint32_t dictref = (u << 8) + l;
-                    uint32_t len = (dictref & 0b0000000000001111) + 2;
                     ReadOffset = (dictref & 0b1111111111110000) >>4 ;
                     
-                    std::string ref = DICT.substr(ReadOffset, len);
+                    //Compare the offset to the dictionary's write offset
+                    //if they are equal, then the decompression is complete; exit the decompression loop
+                    if(WriteOffset == ReadOffset) {
+                        //escape hatch
+                        goto end_of_decompression;
+                    }
+                    //If they are not equal, continue to the next step.
+                    //Set the dictionary's read offset to offset
                     
-                    uint32_t copied = len;
-                    uint32_t idx = 0;
+                    //Extract the length from the dictionary reference
+                    //and calculate the actual length by adding 2 to the
+                    //length that is extracted from the dictionary reference.
+                    uint32_t len = (dictref & 0b0000000000001111) + 2;
                     
-                    while (copied != 0) {
+                    uint32_t i = 0;
+                    while (i != len) {
                         
-                        char v = ref.at(idx);
-                        idx++;
-                        copied--;
+                        //Read a byte from the current dictionary read offset...
+                        uint8_t v = DICT.at(ReadOffset);
+                        i++;
+                        //...and write it to the output.
+                        rtf.insert(rtf.end(), v);
+//                        std::cerr << v;
                         
-                        if(idx == ref.length()){
-                            idx=0;//repeat
+                        //Increment the read offset
+                        ReadOffset++;
+                        if(ReadOffset == 4096) {
+                            ReadOffset=0;//circular
                         }
-                     
-                        if(DICT.length() < 4096) {
+                        
+                        //Write the byte to the dictionary at the write offset.
+                        if(WriteOffset == DICT.length()) {
                             DICT.push_back(v);
                         }else{
-                            DICT[WriteOffset] = v;//circular
+                            DICT[WriteOffset] = v;
                         }
-                                                
-                        if(WriteOffset == 4095) {
+                        
+                        //Increment the write offset
+                        WriteOffset++;
+                        if(WriteOffset == 4096) {
                             WriteOffset=0;//circular
-                        }else{
-                            WriteOffset++;
                         }
-                        rtf.insert(rtf.end(), v);
+                        
+                        // Continue from step 6 until the number of bytes calculated in step 5 has been read from the dictionary
                     }
 
                 }else{
-                                            
+                           
+                    //If the value of the bit is 0:
                     uint8_t v = buf.at(pos);
+                    //Read a 1-byte literal from the input...
                     pos++;
+                    //...and write it to the output.
+                    rtf.insert(rtf.end(), v);
+//                    std::cerr << v;
                     
-                    if(DICT.length() < 4096) {
+                    //Set the byte in the dictionary at the current write offset.
+                    if(WriteOffset == DICT.length()) {
                         DICT.push_back(v);
                     }else{
-                        DICT[WriteOffset] = v;//circular
+                        DICT[WriteOffset] = v;
                     }
-                                        
-                    if(WriteOffset == 4095) {
+                    
+                    //Increment the write offset
+                    WriteOffset++;
+                    if(WriteOffset == 4096) {
                         WriteOffset=0;//circular
-                    }else{
-                        WriteOffset++;
                     }
-                    rtf.insert(rtf.end(), v);
+
                 }
  
                 if(rtf.size() == RAWSIZE) {
@@ -644,9 +648,9 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
             
             std::string _rtf = "{\\rtf1\\ansi\\ Hello, \\b World\\b0! This is \\i RichEdit\\i0  test.}";
             std::string t;
-            rtf_to_text(hwnd, _rtf, t);
-//            rtf_to_text(hwnd, document.message.rtf, t);
-            text += document.message.rtf;
+//            rtf_to_text(hwnd, _rtf, t);
+            rtf_to_text(hwnd, document.message.rtf, t);
+            text += t;
         }
     }else{
         Json::Value documentNode(Json::objectValue);
@@ -1402,7 +1406,6 @@ static void process_root(Document& document,
     document.message = message;
 }
 
-
 int main(int argc, OPTARG_T argv[]) {
         
     const OPTARG_T input_path  = NULL;
@@ -1413,8 +1416,6 @@ int main(int argc, OPTARG_T argv[]) {
 #else
     std::string  temp_input_path;
 #endif
-
-    bool rtf_converter_ready = false;
 
     HWND hwnd = NULL;
 
@@ -1542,6 +1543,12 @@ int main(int argc, OPTARG_T argv[]) {
     
     if(temp_input_path.length()) {
         _unlink(temp_input_path.c_str());
+    }
+    
+    FILE *f = _fopen("/Users/miyako/Desktop/test.rtf", _wb);
+    if(f) {
+        fwrite(document.message.rtf.c_str(), 1, document.message.rtf.length(), f);
+        fclose(f);
     }
     
     if(!output_path) {

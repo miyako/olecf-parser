@@ -103,16 +103,32 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "9E120DF9-3C82-41E1-A61E-A48932A7346E"
+            uuid = "E571C644-AA65-46D4-A632-6D616C264A2D"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "olecf-parser/main.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "647"
-            endingLineNumber = "647"
-            landmarkName = "document_to_json_msg(document, text, rawText, hwnd)"
+            startingLineNumber = "550"
+            endingLineNumber = "550"
+            landmarkName = "process_rtf(buf, rtf)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "68B86DA6-2C85-48F8-94FA-DDA143CDFC27"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "olecf-parser/main.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "543"
+            endingLineNumber = "543"
+            landmarkName = "process_rtf(buf, rtf)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

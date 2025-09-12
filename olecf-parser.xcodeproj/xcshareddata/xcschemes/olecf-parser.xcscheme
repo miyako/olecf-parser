@@ -89,7 +89,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/miyako/Desktop/ppt-932.txt"
+            argument = "/Users/miyako/Desktop/test.rtf"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
