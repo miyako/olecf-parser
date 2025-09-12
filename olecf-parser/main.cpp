@@ -7,6 +7,238 @@
 
 #include "olecf-parser.h"
 
+#ifdef __APPLE__
+#include "cpmap.h"
+#define MAX_LENGTH_FOR_ENCODING_NAME (255)
+#else
+#include <mlang.h>
+#endif
+
+static int guess_code_page(const char *data, size_t size) {
+    
+    int codepage = 1252;
+    
+#ifdef __APPLE__
+    ItemCount count, num;
+    
+    if(!TECCountAvailableTextEncodings(&count))
+    {
+        std::vector<TextEncoding> _encodings(count);
+        TextEncoding *encodings = &_encodings[0];
+        
+        TECGetAvailableTextEncodings(encodings, count, &num);
+        
+        int len = MAX_LENGTH_FOR_ENCODING_NAME;
+        
+        TECSnifferObjectRef sniffer;
+        
+        if(!TECCreateSniffer(&sniffer, encodings, num))
+        {
+            ItemCount numTextEncodings = num;
+            ItemCount maxErrs = size;
+            ItemCount maxFeatures = size;
+            
+            std::vector<ItemCount> _numErrsArray(count);
+            ItemCount *numErrsArray = &_numErrsArray[0];
+            
+            std::vector<ItemCount> _numFeaturesArray(count);
+            ItemCount *numFeaturesArray = &_numFeaturesArray[0];
+            
+            OSStatus status = TECSniffTextEncoding(sniffer,
+                                                   (ConstTextPtr)data,
+                                                   (ByteCount)size,
+                                                   encodings,
+                                                   numTextEncodings,
+                                                   numErrsArray,
+                                                   maxErrs,
+                                                   numFeaturesArray,
+                                                   maxFeatures);
+            
+            if(status){
+                return 1252;//default
+            }else{
+                
+                RegionCode actualRegion;
+                TextEncoding actualEncoding;
+                ByteCount length;
+                
+                TextEncoding unicode = CreateTextEncoding(kTextEncodingUnicodeDefault,
+                                                          kTextEncodingDefaultVariant,
+                                                          kUnicode16BitFormat);
+                
+                std::vector<char> buf(len);
+                
+                if(!GetTextEncodingName(
+                                        encodings[0],
+                                        kTextEncodingFullName,
+                                        0,
+                                        unicode,
+                                        len,
+                                        &length,
+                                        &actualRegion,
+                                        &actualEncoding,
+                                        (TextPtr)&buf[0]))
+                {
+                    CFStringRef name = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar*)&buf[0], (length/2));
+                    if(name)
+                    {
+                        UInt32 cp = TextEncodingNameToWindowsCodepage(name);
+                        if(cp > 0) {
+                            codepage = cp;
+                        }
+                        CFRelease(name);
+                    }
+                    
+                }
+                
+            }
+                    
+                    TECDisposeSniffer(sniffer);
+        }
+        
+    }
+#else
+    IMultiLanguage2 *mlang = NULL;
+    CoCreateInstance(CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, IID_IMultiLanguage2, (void **)&mlang);
+    
+    if(mlang)
+    {
+        int scores = CP_CODES.getSize();
+        std::vector<DetectEncodingInfo> encodings(scores);
+        mlang->DetectInputCodepage(MLDETECTCP_NONE, 0, data, (INT *)&size, &encodings[0], &scores);
+        
+        //no HRESULT?
+        INT confidence = 0;
+        for(int i = 0; i < scores ; ++i)
+        {
+            if(encodings[i].nLangID != 0)
+            {
+                if(confidence < encodings[i].nConfidence){
+                    codepage = encodings[i].nCodePage;
+                }
+            }
+        }
+        mlang->Release();
+    }
+#endif
+    
+    return codepage;
+}
+
+#ifdef __APPLE__
+CFStringEncoding codepage_to_cfencoding(int cp) {
+    
+    switch(cp) {
+   
+        case 1361: return kCFStringEncodingWindowsKoreanJohab;
+            
+        case 1258: return kCFStringEncodingWindowsVietnamese;
+        case 1257: return kCFStringEncodingWindowsBalticRim;
+        case 1256: return kCFStringEncodingWindowsArabic;
+        case 1255: return kCFStringEncodingWindowsHebrew;
+        case 1254: return kCFStringEncodingWindowsLatin5;
+        case 1253: return kCFStringEncodingWindowsGreek;
+        case 1252: return kCFStringEncodingWindowsLatin1;
+        case 1251: return kCFStringEncodingWindowsCyrillic;
+        case 1250: return kCFStringEncodingWindowsLatin2;
+
+        case 950:  return kCFStringEncodingBig5;
+        case 949:  return kCFStringEncodingDOSKorean;
+        case 936:  return kCFStringEncodingDOSChineseSimplif;
+        case 932:  return kCFStringEncodingShiftJIS;
+
+        case 869:  return kCFStringEncodingDOSGreek2;
+        case 866:  return kCFStringEncodingDOSRussian;
+        case 865:  return kCFStringEncodingDOSNordic;
+        case 864:  return kCFStringEncodingDOSArabic;
+        case 863:  return kCFStringEncodingDOSCanadianFrench;
+        case 862: return kCFStringEncodingDOSHebrew;
+        case 861: return kCFStringEncodingDOSIcelandic;
+        case 860: return kCFStringEncodingDOSPortuguese;
+        case 857: return kCFStringEncodingDOSTurkish;
+        case 855: return kCFStringEncodingDOSCyrillic;
+        case 852: return kCFStringEncodingDOSLatin2;
+        case 851: return kCFStringEncodingDOSGreek1;
+        case 850: return kCFStringEncodingDOSLatin1;
+        case 775: return kCFStringEncodingDOSBalticRim;
+        case 737: return kCFStringEncodingDOSGreek;
+            
+        case 437: return kCFStringEncodingDOSLatinUS;
+            
+        case 37: return kCFStringEncodingEBCDIC_CP037;
+        default:   return 1252; // default
+    }
+}
+#endif
+
+static void utf16_to_utf8(const uint8_t *u16data, size_t u16size, std::string& u8) {
+#ifdef __APPLE__
+    
+    CFStringRef str = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar *)u16data, u16size);
+    if(str){
+        size_t size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8) + sizeof(uint8_t);
+        std::vector<uint8_t> buf(size);
+        CFIndex len = 0;
+        CFStringGetBytes(str, CFRangeMake(0, CFStringGetLength(str)), kCFStringEncodingUTF8, 0, true, (UInt8 *)buf.data(), size, &len);
+        u8 = (const char *)buf.data();
+        CFRelease(str);
+    }else{
+        u8 = "";
+    }
+#else
+    int len = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, NULL, 0, NULL, NULL);
+    
+    if(len){
+        std::vector<uint8_t> buf(len + 1);
+        if(WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16data, u16size, (LPSTR)buf.data(), len, NULL, NULL)){
+            u8 = (const char *)buf.data();
+        }
+    }else{
+        u8 = "";
+    }
+#endif
+}
+
+static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
+    
+#ifdef __APPLE__
+    CFDataRef data = CFDataCreate(kCFAllocatorDefault,
+                                      reinterpret_cast<const UInt8*>(ansi.data()),
+                                      ansi.size());
+    
+    CFStringRef str = CFStringCreateFromExternalRepresentation(
+                                                               kCFAllocatorDefault,
+                                                               data,
+                                                               codepage_to_cfencoding(cp));
+    CFRelease(data);
+    if(str) {
+        CFIndex len = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str),
+                                                        kCFStringEncodingUTF8);
+        std::vector<uint8_t> buf(len + 1);
+        if (CFStringGetCString(str, (char *)buf.data(), len, kCFStringEncodingUTF8)) {
+            u8 = (const char *)buf.data();
+        }else{
+            u8 = "";
+        }
+        CFRelease(str);
+    }else{
+        u8 = "";
+    }
+#else
+    int len = MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), NULL, 0, NULL, NULL);
+    if(len){
+        std::vector<uint16_t> buf(len + sizeof(uint16_t));
+        if(MultiByteToWideChar(cp, 0, (LPCSTR)ansi.data(), ansi.size(), (LPWSTR)buf.data(), len, NULL, NULL)){
+            utf16_to_utf8((const uint8_t *)buf.data(), buf.size(), u8);
+        }else{
+            u8 = "";
+        }
+    }else{
+        u8 = "";
+    }
+#endif
+}
+
 static void usage(void)
 {
     fprintf(stderr, "Usage:  olecf-parser -r -i in -o out -\n\n");
@@ -69,9 +301,9 @@ int getopt(int argc, OPTARG_T *argv, OPTARG_T opts) {
     }
     return(c);
 }
-#define ARGS (OPTARG_T)L"i:o:-rh"
+#define ARGS (OPTARG_T)L"i:o:-rc:h"
 #else
-#define ARGS "i:o:-rh"
+#define ARGS "i:o:-rc:h"
 #endif
 
 struct Account {
@@ -89,9 +321,14 @@ struct Message {
     std::string headers;
 };
 
+struct Slide {
+    std::vector<std::string> text;
+};
+
 struct Document {
     std::string type;
     Message message;
+    std::vector<Slide> slides;
 };
 
 static void utf16le_to_utf_8(std::vector<uint8_t>& buf, std::string& u8) {
@@ -321,7 +558,7 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
     return -1;//not rtf
 }
 
-static void document_to_json(Document& document, std::string& text, bool rawText) {
+static void document_to_json_msg(Document& document, std::string& text, bool rawText) {
     
     if(rawText){
         text = "";
@@ -360,8 +597,347 @@ static void document_to_json(Document& document, std::string& text, bool rawText
     }
 }
 
+static void document_to_json_ppt(Document& document, std::string& text, bool rawText) {
+    
+    if(rawText){
+        text = "";
+        for(const auto &slide : document.slides) {
+            for(const auto &t : slide.text) {
+                text += t;
+            }
+        }
+    }else{
+        Json::Value documentNode(Json::objectValue);
+        documentNode["type"] = document.type;
+        
+        Json::Value slidesNode(Json::arrayValue);
+        
+        for(const auto &slide : document.slides) {
+            Json::Value slideNode(Json::objectValue);
+            Json::Value textNode(Json::arrayValue);
+            for(const auto &text : slide.text) {
+                textNode.append(text);
+            }
+            slideNode["text"] = textNode;
+            slidesNode.append(slideNode);
+        }
+        documentNode["slides"] = slidesNode;
+        
+//        Json::Value messageNode(Json::objectValue);
+//        messageNode["subject"] = document.message.subject;
+//        messageNode["text"] = document.message.text;
+//        messageNode["html"] = document.message.html;
+//        messageNode["rtf"] = document.message.rtf;
+//        messageNode["headers"] = document.message.headers;
+        
+//        Json::Value senderNode(Json::objectValue);
+//        Json::Value recipientNode(Json::objectValue);
+//        senderNode["name"] = document.message.sender.name;
+//        senderNode["address"] = document.message.sender.address;
+//        recipientNode["name"] = document.message.recipient.name;
+//        recipientNode["address"] = document.message.recipient.address;
+
+//        documentNode["sender"] = senderNode;
+//        documentNode["recipient"] = recipientNode;
+//        documentNode["message"] = messageNode;
+        
+        Json::StreamWriterBuilder writer;
+        writer["indentation"] = "";
+        text = Json::writeString(writer, documentNode);
+    }
+}
+
+typedef struct {
+    uint16_t recVerInstance; //recVer(4)+recVerInstance(12)
+    uint16_t recType;
+    uint32_t recLen;
+} RecordHeader;
+
+typedef struct {
+    uint32_t x;
+    uint32_t y;
+} PointStruct;
+
+typedef struct {
+    uint32_t numer;
+    uint32_t denom;
+} RatioStruct;
+
+typedef struct {
+    //8+8+8+8=32
+    RecordHeader rh;
+    PointStruct slideSize;
+    PointStruct notesSize;
+    RatioStruct serverZoom;
+    
+    //4+4=8
+    uint32_t notesMasterPersistIdRef;
+    uint32_t handoutMasterPersistIdRef;
+    
+    //2+2=4
+    uint16_t firstSlideNumber;
+    uint16_t slideSizeType;
+    
+    //1+1+1+1=4
+    uint8_t fSaveWithFonts;
+    uint8_t fOmitTitlePlace;
+    uint8_t fRightToLeft;
+    uint8_t fShowComments;
+} DocumentAtom;
+
+static uint16_t read_u16_le(const uint8_t *buf) { return buf[0] | (buf[1]<<8); }
+static uint32_t read_u32_le(const uint8_t *buf) { return buf[0] | (buf[1]<<8) | (buf[2]<<16) | (buf[3]<<24); }
+static uint32_t read_u32_be(const uint8_t *buf) { return buf[0] << 24 | (buf[1]<<16) | (buf[2]<<8) | (buf[3]); }
+
+static RecordHeader read_RecordHeader(const uint8_t *p) {
+    
+    size_t offset = 0;
+    
+    RecordHeader rh;
+    rh.recVerInstance = read_u16_le(p);
+    offset += sizeof(uint16_t);
+    rh.recType        = read_u16_le(p + offset);
+    offset += sizeof(uint16_t);
+    rh.recLen         = read_u32_le(p + offset);
+    
+    return rh;
+}
+
+static PointStruct read_PointStruct(const uint8_t *p) {
+    
+    size_t offset = 0;
+    
+    PointStruct ps;
+    ps.x = read_u32_le(p);
+    offset += sizeof(uint32_t);
+    ps.y = read_u32_le(p + offset);
+    
+    return ps;
+}
+
+static RatioStruct read_RatioStruct(const uint8_t *p) {
+    
+    size_t offset = 0;
+    
+    RatioStruct rs;
+    rs.numer = read_u32_le(p);
+    offset += sizeof(uint32_t);
+    rs.denom = read_u32_le(p + offset);
+    
+    return rs;
+}
+
+static DocumentAtom read_DocumentAtom(const uint8_t *p) {
+    
+    size_t offset = 0;
+    
+    DocumentAtom da;
+    da.rh = read_RecordHeader(p);
+    offset += sizeof(RecordHeader);
+    
+    da.slideSize      = read_PointStruct(p + offset);
+    offset += sizeof(PointStruct);
+    da.notesSize      = read_PointStruct(p + offset);
+    offset += sizeof(PointStruct);
+    da.serverZoom     = read_RatioStruct(p + offset);
+    offset += sizeof(RatioStruct);
+
+    da.notesMasterPersistIdRef     = read_u32_le(p + offset);
+    offset += sizeof(uint32_t);
+    da.handoutMasterPersistIdRef   = read_u32_le(p + offset);
+    offset += sizeof(uint32_t);
+ 
+    da.firstSlideNumber     = read_u16_le(p + offset);
+    offset += sizeof(uint16_t);
+    da.slideSizeType     = read_u16_le(p + offset);
+    offset += sizeof(uint16_t);
+    
+    da.fSaveWithFonts = p[offset];
+    offset += sizeof(uint8_t);
+    da.fOmitTitlePlace = p[offset];
+    offset += sizeof(uint8_t);
+    da.fRightToLeft = p[offset];
+    offset += sizeof(uint8_t);
+    da.fShowComments = p[offset];
+    
+    return da;
+}
+
+void read_ppt(Document& document, const uint8_t *stream, size_t stream_len, int codepage) {
+    
+    size_t offset = 0;
+    
+    while (offset + sizeof(RecordHeader) <= stream_len) {
+        
+        RecordHeader rh;
+        rh = read_RecordHeader(stream + offset);
+        offset += sizeof(RecordHeader);//+=8
+
+        if(rh.recLen == 0) break;
+        
+        if (offset + rh.recLen > stream_len) break;
+
+        switch (rh.recType) {
+            case 0x0:
+                return;
+                break;
+            case 0x0ff5: //RT_UserEditAtom (UserEditAtom)
+//                std::cerr << "UserEditAtom" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x1772: //RT_PersistDirectoryAtom (PersistDirectoryAtom)
+//                std::cerr << "PersistDirectoryAtom" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x03ee: //RT_Slide
+//                std::cerr << "SlideContainer" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x03ef: //RT_SlideAtom
+//                std::cerr << "SlideAtom" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x040c: //RT_Drawing
+//                std::cerr << "DrawingContainer" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x0fc9 ://RT_Handout (HandoutContainer)
+//                std::cerr << "HandoutContainer" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x03F0 ://RT_Notes (NotesContainer)
+//                std::cerr << "NotesContainer" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x03f1 : //RT_NotesAtom (NotesAtom)
+//                std::cerr << "NotesAtom" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x03F8 ://RT_MainMaster (MainMasterContainer)
+//                std::cerr << "MainMasterContainer" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x1007 ://ExternalMciMovie (ExMCIMovieContainer)
+//                std::cerr << "ExMCIMovieContainer" << "(" << rh.recLen << ")"  << std::endl;
+                break;
+            case 0x03E8 ://RT_Document (DocumentContainer)
+            {
+//                std::cerr << "DocumentContainer" << "(" << rh.recLen << ")"  << std::endl;
+                                                
+                DocumentAtom da;
+                da = read_DocumentAtom(stream + offset);//RT_DocumentAtom
+                                
+                size_t da_offset = offset + sizeof(DocumentAtom);
+                size_t pos = sizeof(DocumentAtom);
+                
+                while (pos + sizeof(RecordHeader) <= rh.recLen) {
+                    
+                    RecordHeader member;
+                    member = read_RecordHeader(stream + da_offset);
+                    da_offset += sizeof(RecordHeader);
+
+                    pos += sizeof(RecordHeader);
+                    
+                    switch (member.recType) {
+                        case 0x07d0 :
+//                        std::cerr << "\tDocInfoListContainer" << "(" << member.recLen << ")"  << std::endl;
+                        break;
+                        case 0x03ea :
+//                        std::cerr << "\tEndDocumentAtom" << "(" << member.recLen << ")"  << std::endl;
+                        break;
+                        case 0x0428 :
+//                        std::cerr << "\tRoundTripCustomTableStyles12Atom" << "(" << member.recLen << ")"  << std::endl;
+                        break;
+                            case 0x0401 :
+//                            std::cerr << "\tSlideShowDocInfoAtom" << "(" << member.recLen << ")"  << std::endl;
+                            break;
+                        case 0x0Fd9://HeadersFooters
+//                            std::cerr << "\tHeadersFooters" << "(" << member.recLen << ")"  << std::endl;
+                            break;
+                        case 0x0FF0://SlideListWithText
+//                            std::cerr << "\tSlideListWithTextContainer" << "(" << member.recLen << ")"  << std::endl;
+                        {
+//                            slideIndex++;
+//                            std::cerr << "slide #" << slideIndex << std::endl;
+                            Slide slide;
+                            
+                            size_t m_offset = da_offset;
+                            size_t m_pos = sizeof(RecordHeader);
+                            while (m_pos + sizeof(RecordHeader) <= member.recLen) {
+                             
+                                RecordHeader sl;
+                                sl = read_RecordHeader(stream + m_offset);
+                                m_pos += sizeof(RecordHeader);
+                                m_offset += sizeof(RecordHeader);
+                                
+                                switch (sl.recType) {
+                                    case 0x03f3 :
+//                                        std::cerr << "\t\tSlidePersistAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                        break;
+                                    case 0x0f9f :
+//                                        std::cerr << "\t\tTextHeaderAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                        break;
+                                    case 0x0fa9 :
+//                                        std::cerr << "\t\tTextSpecialInfoDefaultAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                        break;
+                                    case 0x0fa1 :
+//                                        std::cerr << "\t\tStyleTextPropAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                        break;
+                                    case 0x0faa :
+//                                        std::cerr << "\t\tTextSpecialInfoAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                        break;
+                                    case 0x0fa8 :
+                                    {
+//                                        std::cerr << "\t\tTextBytesAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                        std::string ansi = std::string((const char *)stream + m_offset, sl.recLen);
+                                        std::string u8;
+
+                                        ansi_to_utf8(ansi, u8, codepage);
+//                                        std::cerr << u8 << std::endl;
+//                                        slide.text.push_back(u8);
+                                    }
+                                        break;
+                                    case 0x0fa0 :
+//                                        std::cerr << "\t\tTextCharsAtom" << "(" << sl.recLen << ")"  << std::endl;
+                                    {
+                                        std::string u8;
+                                        utf16_to_utf8((const uint8_t *)stream + m_offset, sl.recLen, u8);
+                                        slide.text.push_back(u8);
+//                                        std::cerr << u8 << std::endl;
+                                    }
+                                        break;
+                                    default:
+//                                        std::cerr << sl.recType << "(" << sl.recLen << ")"  << std::endl;
+                                        break;
+                                        
+                                }
+                                m_pos += sl.recLen;;
+                                m_offset += sl.recLen;
+                            }
+                            
+                            document.slides.push_back(slide);
+                        }
+                            break;
+                        case 0x040B://DrawingGroup
+//                            std::cerr << "\tDrawingGroup" << "(" << member.recLen << ")"  << std::endl;
+                            break;
+                        case 0x03F2://DocumentTextInfoContainer
+//                            std::cerr << "\tDocumentTextInfoContainer" << "(" << member.recLen << ")"  << std::endl;
+                            break;
+                        default:
+//                            std::cerr << member.recType << std::endl;
+                            break;
+                    }
+                    
+                    da_offset += member.recLen;
+                    pos += member.recLen;
+                }
+                
+            }
+                break;
+            default:
+//                std::cerr << rh.recType << "(" << rh.recLen << ")"  << std::endl;
+                continue;
+                break;
+        }
+        
+        offset += rh.recLen;
+    }
+}
+
 static void process_root(Document& document,
-                           libolecf_item_t *root) {
+                           libolecf_item_t *root, int codepage) {
  
     libolecf_error_t *error = NULL;
     size_t utf8_string_size;
@@ -371,6 +947,13 @@ static void process_root(Document& document,
     Account recipient;
     
     std::vector<std::string> properties_to_ignore = {
+        "Pictures",
+        "Current User",
+        "EncryptedSummary",
+        "_xmlsignatures",
+        "_signatures",
+        "\005SummaryInformation",
+        "\005DocumentSummaryInformation",
         "__substg1.0_65E30102",
         "__substg1.0_65E20102",
         "__substg1.0_80090048",
@@ -479,6 +1062,15 @@ static void process_root(Document& document,
                         uint32_t size = 0;
                         if(libolecf_item_get_size(sub_item, &size, &error) == 1) {
                             
+                            if (document.type == "") {
+                                if (property.starts_with("__substg1.0_")) {
+                                    document.type = "msg";
+                                }
+                                if (property == "PowerPoint Document") {
+                                    document.type = "ppt";
+                                }
+                            }
+                            
                             if(size == 0) {
                                 goto read_sub_items;
                             }
@@ -490,6 +1082,13 @@ static void process_root(Document& document,
                             std::vector<uint8_t>item_value_buf(size);
                             ssize_t len = libolecf_stream_read_buffer(sub_item, item_value_buf.data(), item_value_buf.size(), NULL);
                             
+                            if(property == "PowerPoint Document") {
+                                if(len != -1) {
+                                    read_ppt(document, item_value_buf.data(), item_value_buf.size(), codepage);
+                                }
+                                goto read_sub_items;
+                            }
+
                             //PidTagTransportMessageHeaders
                             if(property == "__substg1.0_007D001F") {
                                 if(len != -1) {
@@ -723,7 +1322,7 @@ static void process_root(Document& document,
                                                     continue;
                                                 }
                                                 
-                                                //std::cerr << "\t" << property << "(" << size << ")" << std::endl;
+//                                                std::cerr << "\t" << property << "(" << size << ")" << std::endl;
 
                                             }
                                         }
@@ -758,6 +1357,7 @@ int main(int argc, OPTARG_T argv[]) {
     int ch;
     std::string text;
     bool rawText = false;
+    int codepage = 1252;
     
     while ((ch = getopt(argc, argv, ARGS)) != -1){
         switch (ch){
@@ -766,6 +1366,9 @@ int main(int argc, OPTARG_T argv[]) {
                 break;
             case 'o':
                 output_path = optarg;
+                break;
+            case 'c':
+                codepage = atoi(optarg);
                 break;
             case '-':
             {
@@ -820,11 +1423,16 @@ int main(int argc, OPTARG_T argv[]) {
 
     if (libolecf_file_initialize(&file, &error) == 1) {
         if (_libolecf_file_open(file, filename, LIBOLECF_OPEN_READ, &error) == 1) {
-            document.type = "msg";
+            document.type = "";
             libolecf_item_t *root = NULL;
             if (libolecf_file_get_root_item(file, &root, &error) == 1) {
-                process_root(document, root);
-                document_to_json(document, text, rawText);
+                process_root(document, root, codepage);
+                if(document.type == "msg"){
+                    document_to_json_msg(document, text, rawText);
+                }
+                if(document.type == "ppt"){
+                    document_to_json_ppt(document, text, rawText);
+                }
             }else{
                 std::cerr << "Failed to get MSG root item!" << std::endl;
             }

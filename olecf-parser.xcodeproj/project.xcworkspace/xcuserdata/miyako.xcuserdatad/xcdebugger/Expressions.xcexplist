@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "read_RecordHeader:main.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "read_ppt:main.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "sizeof(DocumentAtom)">
+            </PersistentString>
+            <PersistentString
+               value = "offset + rh.recLen">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "read_DocumentAtom:main.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "extract_slide_text:main.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "process_root:main.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "read_u32_le:main.cpp">
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>

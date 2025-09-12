@@ -11,6 +11,7 @@
 		D107CDB32E6EC40400791C2B /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D107CDB22E6EC40400791C2B /* CoreFoundation.framework */; };
 		D10C5CAD2E6A7F3400D120DE /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D157F31B2E613ACD00DF46D3 /* libz.tbd */; };
 		D157F3122E612DD500DF46D3 /* libjsoncpp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D157F30C2E612DD500DF46D3 /* libjsoncpp.a */; };
+		D17C73DD2E73D9B600DD40FB /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73DC2E73D9B600DD40FB /* CoreServices.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -32,6 +33,7 @@
 		D157F31B2E613ACD00DF46D3 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		D16478942E611F7700FC9914 /* olecf-parser */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "olecf-parser"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D164789E2E61216B00FC9914 /* olecf-config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "olecf-config.xcconfig"; sourceTree = "<group>"; };
+		D17C73DC2E73D9B600DD40FB /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = System/Library/Frameworks/CoreServices.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -47,6 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D17C73DD2E73D9B600DD40FB /* CoreServices.framework in Frameworks */,
 				D107CDB32E6EC40400791C2B /* CoreFoundation.framework in Frameworks */,
 				D107CDB12E6E833B00791C2B /* libolecf.a in Frameworks */,
 				D10C5CAD2E6A7F3400D120DE /* libz.tbd in Frameworks */,
@@ -60,6 +63,7 @@
 		D157F30B2E612DD500DF46D3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D17C73DC2E73D9B600DD40FB /* CoreServices.framework */,
 				D107CDB22E6EC40400791C2B /* CoreFoundation.framework */,
 				D107CDB02E6E833B00791C2B /* libolecf.a */,
 				D157F31B2E613ACD00DF46D3 /* libz.tbd */,
