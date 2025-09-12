@@ -27,10 +27,16 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="olecf-parser\html.cpp" />
     <ClCompile Include="olecf-parser\main.cpp" />
+    <ClCompile Include="olecf-parser\RtfReader.cpp" />
+    <ClCompile Include="olecf-parser\text.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="olecf-parser\html.h" />
     <ClInclude Include="olecf-parser\olecf-parser.h" />
+    <ClInclude Include="olecf-parser\RtfReader.h" />
+    <ClInclude Include="olecf-parser\text.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -163,7 +169,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>lib\windows64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Comctl32.lib;libclocale.lib;libcsplit.lib;libcpath.lib;libcerror.lib;libcfile.lib;libbfio.lib;libuna.lib;libcdata.lib;zlib.lib;libolecf.lib;jsoncpp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>librtf.lib;Comctl32.lib;libclocale.lib;libcsplit.lib;libcpath.lib;libcerror.lib;libcfile.lib;libbfio.lib;libuna.lib;libcdata.lib;zlib.lib;libolecf.lib;jsoncpp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">

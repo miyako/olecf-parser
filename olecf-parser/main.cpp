@@ -657,11 +657,11 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
             text += document.message.text;
         }
         else {
-            if (document.message.rtf.length() != 0) {
-                text += document.message.rtf;
+            if (document.message.html.length() != 0) {
+                text += document.message.html;
             }else{
-                if (document.message.html.length() != 0) {
-                    text += document.message.html;
+                if (document.message.rtf.length() != 0) {
+                    text += document.message.rtf;
                 }
             }
         }

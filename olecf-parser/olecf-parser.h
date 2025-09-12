@@ -35,7 +35,11 @@
 #endif
 #endif
 
+#ifdef __APPLE__
 #include "librtf.h"
+#else
+#include "librtf (windows).h"
+#endif
 #include "RtfReader.h"
 
 #ifdef _WIN32
