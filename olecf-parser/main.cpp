@@ -575,7 +575,45 @@ static void print_text(TidyDoc tdoc, TidyNode tnode, std::string& text) {
     }
 }
 
-static void html_to_txt(std::string& html, std::string& txt) {
+static void extract_text(lxb_dom_node_t *node, std::string& text) {
+    
+    if (!node) return;
+
+    if(node->type == LXB_DOM_NODE_TYPE_TEXT) {
+        lxb_dom_text_t *text_node = lxb_dom_interface_text(node);
+        if(text_node) {
+            lxb_dom_character_data data = text_node->char_data;
+            lexbor_str_t str = data.data;
+            if (str.length >0) {
+                text += std::string((const char *)str.data, str.length);
+            }
+        }
+    } else if (node->type == LXB_DOM_NODE_TYPE_ELEMENT ||
+               node->type == LXB_DOM_NODE_TYPE_DOCUMENT ||
+               node->type == LXB_DOM_NODE_TYPE_DOCUMENT_FRAGMENT) {
+        for (lxb_dom_node_t *child = node->first_child; child; child = child->next) {
+            extract_text(child, text);
+        }
+    }
+}
+
+static void html_to_txt_lexbor(std::string& html, std::string& txt) {
+    
+    lxb_html_document_t *_document = lxb_html_document_create();
+    if(_document) {
+        lxb_status_t status = lxb_html_document_parse(_document, (const lxb_char_t*)html.c_str(), html.length());
+        if (status == LXB_STATUS_OK) {
+            lxb_html_body_element_t *body_element = lxb_html_document_body_element(_document);
+            if(body_element) {
+                lxb_dom_node_t *body_node = (lxb_dom_node_t *)body_element;
+                extract_text(body_node, txt);
+            }
+        }
+        lxb_html_document_destroy(_document);
+    }
+}
+
+static void html_to_txt_tidy(std::string& html, std::string& txt) {
     
     TidyDoc tdoc = tidyCreate();
     TidyBuffer errbuf = {0};
@@ -618,8 +656,8 @@ static void html_to_txt(std::string& html, std::string& txt) {
 
 static void rtf_to_html(std::string& rtf, std::string& text) {
     
-        RtfReader::RtfString2HtmlString(text, rtf);
-//        RtfReader::RtfString2TextString(text, rtf);
+//        RtfReader::RtfString2HtmlString(text, rtf);
+        RtfReader::RtfString2TextString(text, rtf);
 }
 
 #if WITH_NATIVE_RTF_CONVERT
@@ -697,15 +735,21 @@ static void rtf_to_text_platform(HWND hwnd, std::string& rtf, std::string& text)
 #endif
 
 static void document_to_json_msg(Document& document, std::string& text, bool rawText) {
-
-    //rtf -> html -> txt is problematic; only do html->txt or rtf->txt (html)
     
     if((document.message.html.length() != 0) && (document.message.text.length() == 0)) {
-        html_to_txt(document.message.html, document.message.text);
+        html_to_txt_tidy(document.message.html, document.message.text);
+//        html_to_txt_lexbor(document.message.html, document.message.text);
     }
     
     if((document.message.rtf.length() != 0) && (document.message.text.length() == 0)) {
         rtf_to_html(document.message.rtf, document.message.text);
+        
+        std::string txt;
+        html_to_txt_tidy(document.message.text, txt);
+        if(txt.length() != 0) {
+            document.message.text = txt;
+//            document.message.text = "*";
+        }
     }
     
     if(rawText){

@@ -72,7 +72,7 @@ int  RtfReader::text::print_unicode(int ch)
         << static_cast<char>(0x80 | ((ch >> 6) & 0x3F))
         << static_cast<char>(0x80 | (ch & 0x3F));
     }
-    return 1;
+    return 0;
 }
 
 void RtfReader::text::hyperlink(string &url)
@@ -142,6 +142,7 @@ void RtfReader::text::print_char(special_characters ch)
 		case tab:
 			stream << "\t"; break;
 		default:
+            std::cerr << ch;
 			break;
 	}
 }
