@@ -15,6 +15,7 @@
 		D17C73DF2E742E6800DD40FB /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73DE2E742E6800DD40FB /* AppKit.framework */; };
 		D17C73EB2E7440E800DD40FB /* librtf.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73EA2E7440E800DD40FB /* librtf.a */; };
 		D17C73ED2E7440FF00DD40FB /* librtfcpp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73EC2E7440FF00DD40FB /* librtfcpp.a */; };
+		D17C73F22E744A9D00DD40FB /* libtidy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D17C73F12E744A9D00DD40FB /* libtidy.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,6 +41,7 @@
 		D17C73DE2E742E6800DD40FB /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		D17C73EA2E7440E800DD40FB /* librtf.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = librtf.a; path = a/librtf.a; sourceTree = "<group>"; };
 		D17C73EC2E7440FF00DD40FB /* librtfcpp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = librtfcpp.a; path = a/librtfcpp.a; sourceTree = "<group>"; };
+		D17C73F12E744A9D00DD40FB /* libtidy.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtidy.a; path = a/libtidy.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -58,6 +60,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D17C73F22E744A9D00DD40FB /* libtidy.a in Frameworks */,
 				D17C73ED2E7440FF00DD40FB /* librtfcpp.a in Frameworks */,
 				D17C73EB2E7440E800DD40FB /* librtf.a in Frameworks */,
 				D17C73DF2E742E6800DD40FB /* AppKit.framework in Frameworks */,
@@ -75,6 +78,7 @@
 		D157F30B2E612DD500DF46D3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D17C73F12E744A9D00DD40FB /* libtidy.a */,
 				D17C73EC2E7440FF00DD40FB /* librtfcpp.a */,
 				D17C73EA2E7440E800DD40FB /* librtf.a */,
 				D17C73DE2E742E6800DD40FB /* AppKit.framework */,

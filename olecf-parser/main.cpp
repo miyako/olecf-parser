@@ -559,6 +559,63 @@ static int process_rtf(std::vector<uint8_t>& buf, std::vector<uint8_t>& rtf) {
     return -1;//not rtf
 }
 
+static void print_text(TidyDoc tdoc, TidyNode tnode, std::string& text) {
+    
+    for (TidyNode child = tidyGetChild(tnode); child; child = tidyGetNext(child)) {
+        TidyNodeType ttype = tidyNodeGetType(child);
+        if (ttype == TidyNode_Text) {
+            TidyBuffer buf;
+            tidyBufInit(&buf);
+            tidyNodeGetValue(tdoc, child, &buf);
+            text += std::string((char*)buf.bp, buf.size);
+            tidyBufFree(&buf);
+        } else if (ttype == TidyNode_Start) {
+            print_text(tdoc, child, text);
+        }
+    }
+}
+
+static void html_to_txt(std::string& html, std::string& txt) {
+    
+    TidyDoc tdoc = tidyCreate();
+    TidyBuffer errbuf = {0};
+    
+    tidyOptSetBool(tdoc, TidyXhtmlOut, yes);
+    tidyOptSetBool(tdoc, TidyXmlOut, no);
+    tidyOptSetBool(tdoc, TidyForceOutput, yes);
+    
+    tidyOptSetBool(tdoc, TidyQuiet, yes);
+    tidyOptSetBool(tdoc, TidyShowWarnings, no);
+    tidySetErrorBuffer(tdoc, &errbuf);
+
+    tidyOptSetValue(tdoc, TidyCustomTags, "blocklevel");
+    tidyOptSetValue(tdoc, TidyDoctype, "auto");
+    
+    tidyOptSetBool(tdoc, TidyMark, no);
+    tidyOptSetInt(tdoc, TidyWrapLen, 0);
+    tidyOptSetBool(tdoc, TidyDropEmptyElems, yes);
+    tidyOptSetBool(tdoc, TidyDropEmptyParas, yes);
+    tidyOptSetBool(tdoc, TidyDropPropAttrs, yes);
+
+    tidyOptSetBool(tdoc, TidyIndentContent, no);
+    tidyOptSetInt(tdoc, TidyIndentSpaces, 0);
+
+    tidyOptSetBool(tdoc, TidyQuoteAmpersand, no);
+    tidyOptSetBool(tdoc, TidyAsciiChars, no);
+    tidyOptSetBool(tdoc, TidyPreserveEntities, no);
+    tidyOptSetBool(tdoc, TidyNumEntities, yes);
+    
+    if(tidyParseString(tdoc, html.c_str()) >= 0) {
+        if(tidyCleanAndRepair(tdoc) >= 0) {
+            TidyNode body = tidyGetBody(tdoc);
+            print_text(tdoc, body, txt);
+        }
+    }
+    
+    tidyRelease(tdoc);
+    tidyBufFree(&errbuf);
+}
+
 static void rtf_to_html(std::string& rtf, std::string& text) {
     
         RtfReader::RtfString2HtmlString(text, rtf);
@@ -640,18 +697,39 @@ static void rtf_to_text_platform(HWND hwnd, std::string& rtf, std::string& text)
 #endif
 
 static void document_to_json_msg(Document& document, std::string& text, bool rawText) {
+
+    //rtf -> html -> txt is problematic; only do html->txt or rtf->txt (html)
     
-    if((document.message.html.length() == 0) && (document.message.rtf.length() != 0)) {
-        rtf_to_html(document.message.rtf, document.message.html);
+    if((document.message.html.length() != 0) && (document.message.text.length() == 0)) {
+        html_to_txt(document.message.html, document.message.text);
+    }
+    
+    if((document.message.rtf.length() != 0) && (document.message.text.length() == 0)) {
+        rtf_to_html(document.message.rtf, document.message.text);
     }
     
     if(rawText){
         text = "";
         text += document.message.sender.name;
+        if (document.message.sender.name.length() != 0) {
+            text += "\r\n";
+        }
         text += document.message.sender.address;
+        if (document.message.sender.address.length() != 0) {
+            text += "\r\n";
+        }
         text += document.message.recipient.name;
+        if (document.message.recipient.name.length() != 0) {
+            text += "\r\n";
+        }
         text += document.message.recipient.address;
+        if (document.message.recipient.address.length() != 0) {
+            text += "\r\n";
+        }
         text += document.message.subject;
+        if (document.message.subject.length() != 0) {
+            text += "\r\n";
+        }
         text += document.message.headers;
         if (document.message.text.length() != 0) {
             text += document.message.text;
@@ -1430,6 +1508,7 @@ int main(int argc, OPTARG_T argv[]) {
     std::string  temp_input_path;
 #endif
 
+#if WITH_NATIVE_RTF_CONVERT
     HWND hwnd = NULL;
 
 #ifdef _WIN32
@@ -1462,6 +1541,7 @@ int main(int argc, OPTARG_T argv[]) {
         }
         */
     }
+#endif
 #endif
 
     std::vector<unsigned char>msg_data(0);
@@ -1569,6 +1649,7 @@ int main(int argc, OPTARG_T argv[]) {
         }
     }
     
+#if WITH_NATIVE_RTF_CONVERT
 #if defined(_WIN32)
     if (hwnd) {
         DestroyWindow(hwnd);
@@ -1578,6 +1659,7 @@ int main(int argc, OPTARG_T argv[]) {
         FreeLibrary(hmodule);
         hmodule = NULL;
     }
+#endif
 #endif
 
     return 0;
