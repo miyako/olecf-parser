@@ -50,7 +50,7 @@
 		D16478962E611F7700FC9914 /* olecf-parser */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			explicitFileTypes = {
-				main.cpp = sourcecode.cpp.cpp;
+				main.cpp = sourcecode.cpp.objcpp;
 			};
 			path = "olecf-parser";
 			sourceTree = "<group>";

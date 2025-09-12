@@ -648,49 +648,18 @@ static void rtf_to_text_platform(HWND hwnd, std::string& rtf, std::string& text)
     
     // text = (const char *)buf.data();
 #else
-    NSData *src = [[NSData alloc]initWithBytes:rtf.c_str() length:rtf.length()];
     
-    if(src)
-    {
-        NSMutableDictionary *src_options = [[NSMutableDictionary alloc]initWithObjects:@[
-            NSRTFTextDocumentType,
-            [NSNumber numberWithFloat:60.0f]
-        ]
-                                                                               forKeys:@[
-                                                                                   NSDocumentTypeDocumentAttribute,
-                                                                                   NSTimeoutDocumentOption
-                                                                               ]];
-        if(src_options) {
-            NSMutableDictionary *dst_options = [[NSMutableDictionary alloc]initWithObjects:@[
-                                                                                             NSPlainTextDocumentType
-                                                                                             ]
-                                                                                   forKeys:@[
-                                                                                             NSDocumentTypeDocumentAttribute
-                                                                                             ]];
-            
-            if(dst_options) {
-                
-                NSError *error = nil;
-                NSAttributedString *dst = [[NSAttributedString alloc]initWithData:src
-                                                                          options:src_options
-                                                               documentAttributes:NULL
-                                                                            error:&error];
-                if(dst) {
-                    NSData *u8 = [dst dataFromRange:NSMakeRange(0, [dst length])
-                                 documentAttributes:dst_options
-                                              error:&error];
-//                    [dst release];
-                    if([u8 length])
-                    {
-                        text = std::string((const char *)[u8 bytes], [u8 length]);
-                    }
-                }
-                
-//                [dst_options release];
-            }
-//            [src_options release];
+    NSData *src = [[NSData alloc]initWithBytes:rtf.c_str() length:rtf.length()];
+    if(src) {
+        NSError *error = nil;
+        NSAttributedString *attrStr = [[NSAttributedString alloc] initWithData:src
+                                                                       options:@{NSDocumentTypeDocumentOption: NSRTFTextDocumentType}
+                                                            documentAttributes:nil
+                                                                         error:&error];
+        if (!error) {
+            NSString *u8 = [attrStr string];
+            text = (const char *)[u8 UTF8String];
         }
-//        [src release];
     }
 #endif
 }
