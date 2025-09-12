@@ -646,7 +646,7 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
             std::string t;
             rtf_to_text(hwnd, _rtf, t);
 //            rtf_to_text(hwnd, document.message.rtf, t);
-            text += t;
+            text += document.message.rtf;
         }
     }else{
         Json::Value documentNode(Json::objectValue);
