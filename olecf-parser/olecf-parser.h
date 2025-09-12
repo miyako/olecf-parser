@@ -2,7 +2,7 @@
 #define __OLECF_PARSER_H__
 
 //experimental
-#define WITH_NATIVE_RTF_CONVERT 0
+#define WITH_NATIVE_RTF_CONVERT 1
 
 #include <json/json.h>
 #include <sstream>

@@ -696,7 +696,7 @@ static void rtf_to_text_platform(HWND hwnd, std::string& rtf, std::string& text)
 }
 #endif
 
-static void document_to_json_msg(Document& document, std::string& text, bool rawText) {
+static void document_to_json_msg(Document& document, std::string& text, bool rawText, HWND hwnd) {
 
     //rtf -> html -> txt is problematic; only do html->txt or rtf->txt (html)
     
@@ -705,7 +705,8 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
     }
     
     if((document.message.rtf.length() != 0) && (document.message.text.length() == 0)) {
-        rtf_to_html(document.message.rtf, document.message.text);
+        //rtf_to_html(document.message.rtf, document.message.text);
+        rtf_to_text_platform(hwnd, document.message.rtf, document.message.text);
     }
     
     if(rawText){
@@ -1621,7 +1622,7 @@ int main(int argc, OPTARG_T argv[]) {
             if (libolecf_file_get_root_item(file, &root, &error) == 1) {
                 process_root(document, root, codepage);
                 if(document.type == "msg"){
-                    document_to_json_msg(document, text, rawText);
+                    document_to_json_msg(document, text, rawText, hwnd);
                 }
                 if(document.type == "ppt"){
                     document_to_json_ppt(document, text, rawText);
