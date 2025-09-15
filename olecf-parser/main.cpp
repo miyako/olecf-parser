@@ -7,128 +7,6 @@
 
 #include "olecf-parser.h"
 
-/*
-#ifdef __APPLE__
-#include "cpmap.h"
-#define MAX_LENGTH_FOR_ENCODING_NAME (255)
-#else
-#include <mlang.h>
-#endif
-*/
-
-/*
-static int guess_code_page(const char *data, size_t size) {
-    
-    int codepage = 1252;
-    
-#ifdef __APPLE__
-    ItemCount count, num;
-    
-    if(!TECCountAvailableTextEncodings(&count))
-    {
-        std::vector<TextEncoding> _encodings(count);
-        TextEncoding *encodings = &_encodings[0];
-        
-        TECGetAvailableTextEncodings(encodings, count, &num);
-        
-        int len = MAX_LENGTH_FOR_ENCODING_NAME;
-        
-        TECSnifferObjectRef sniffer;
-        
-        if(!TECCreateSniffer(&sniffer, encodings, num))
-        {
-            ItemCount numTextEncodings = num;
-            ItemCount maxErrs = size;
-            ItemCount maxFeatures = size;
-            
-            std::vector<ItemCount> _numErrsArray(count);
-            ItemCount *numErrsArray = &_numErrsArray[0];
-            
-            std::vector<ItemCount> _numFeaturesArray(count);
-            ItemCount *numFeaturesArray = &_numFeaturesArray[0];
-            
-            OSStatus status = TECSniffTextEncoding(sniffer,
-                                                   (ConstTextPtr)data,
-                                                   (ByteCount)size,
-                                                   encodings,
-                                                   numTextEncodings,
-                                                   numErrsArray,
-                                                   maxErrs,
-                                                   numFeaturesArray,
-                                                   maxFeatures);
-            
-            if(status){
-                return 1252;//default
-            }else{
-                
-                RegionCode actualRegion;
-                TextEncoding actualEncoding;
-                ByteCount length;
-                
-                TextEncoding unicode = CreateTextEncoding(kTextEncodingUnicodeDefault,
-                                                          kTextEncodingDefaultVariant,
-                                                          kUnicode16BitFormat);
-                
-                std::vector<char> buf(len);
-                
-                if(!GetTextEncodingName(
-                                        encodings[0],
-                                        kTextEncodingFullName,
-                                        0,
-                                        unicode,
-                                        len,
-                                        &length,
-                                        &actualRegion,
-                                        &actualEncoding,
-                                        (TextPtr)&buf[0]))
-                {
-                    CFStringRef name = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar*)&buf[0], (length/2));
-                    if(name)
-                    {
-                        UInt32 cp = TextEncodingNameToWindowsCodepage(name);
-                        if(cp > 0) {
-                            codepage = cp;
-                        }
-                        CFRelease(name);
-                    }
-                    
-                }
-                
-            }
-                    
-                    TECDisposeSniffer(sniffer);
-        }
-        
-    }
-#else
-    IMultiLanguage2 *mlang = NULL;
-    CoCreateInstance(CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, IID_IMultiLanguage2, (void **)&mlang);
-    
-    if(mlang)
-    {
-        int scores = CP_CODES.getSize();
-        std::vector<DetectEncodingInfo> encodings(scores);
-        mlang->DetectInputCodepage(MLDETECTCP_NONE, 0, data, (INT *)&size, &encodings[0], &scores);
-        
-        //no HRESULT?
-        INT confidence = 0;
-        for(int i = 0; i < scores ; ++i)
-        {
-            if(encodings[i].nLangID != 0)
-            {
-                if(confidence < encodings[i].nConfidence){
-                    codepage = encodings[i].nCodePage;
-                }
-            }
-        }
-        mlang->Release();
-    }
-#endif
-    
-    return codepage;
-}
-*/
-
 #ifdef __APPLE__
 CFStringEncoding codepage_to_cfencoding(int cp) {
     
@@ -241,6 +119,8 @@ static void usage(void)
     fprintf(stderr, " %c              : %s\n", '-' , "use stdin for input");
     fprintf(stderr, " -%c             : %s\n", 'r' , "raw text output (default=json)");
     fprintf(stderr, " -%c             : %s\n", 'c' , "ansi codepage (default=1252)");
+//    fprintf(stderr, " -%c             : %s\n", 'p' , "use platform rtf decoder (default=librtf)");
+//    fprintf(stderr, " -%c             : %s\n", 'l' , "use lexbor html decoder (default=tidy)");
     exit(1);
 }
 
@@ -294,11 +174,11 @@ int getopt(int argc, OPTARG_T *argv, OPTARG_T opts) {
     }
     return(c);
 }
-#define ARGS (OPTARG_T)L"i:o:-rc:h"
+#define ARGS (OPTARG_T)L"i:o:-rc:plh"
 #define _atoi _wtoi
 #else
 #define HWND char*
-#define ARGS "i:o:-rc:h"
+#define ARGS "i:o:-rc:plh"
 #define _atoi atoi
 #endif
 
@@ -575,7 +455,47 @@ static void print_text(TidyDoc tdoc, TidyNode tnode, std::string& text) {
     }
 }
 
-static void html_to_txt(std::string& html, std::string& txt) {
+#pragma mark HTML
+
+static void extract_text(lxb_dom_node_t *node, std::string& text) {
+    
+    if (!node) return;
+
+    if(node->type == LXB_DOM_NODE_TYPE_TEXT) {
+        lxb_dom_text_t *text_node = lxb_dom_interface_text(node);
+        if(text_node) {
+            lxb_dom_character_data data = text_node->char_data;
+            lexbor_str_t str = data.data;
+            if (str.length >0) {
+                text += std::string((const char *)str.data, str.length);
+            }
+        }
+    } else if (node->type == LXB_DOM_NODE_TYPE_ELEMENT ||
+               node->type == LXB_DOM_NODE_TYPE_DOCUMENT ||
+               node->type == LXB_DOM_NODE_TYPE_DOCUMENT_FRAGMENT) {
+        for (lxb_dom_node_t *child = node->first_child; child; child = child->next) {
+            extract_text(child, text);
+        }
+    }
+}
+
+static void html_to_txt_lexbor(std::string& html, std::string& txt) {
+    
+    lxb_html_document_t *document = lxb_html_document_create();
+    if(document) {
+        lxb_status_t status = lxb_html_document_parse(document, (const lxb_char_t*)html.c_str(), html.length());
+        if (status == LXB_STATUS_OK) {
+            lxb_html_body_element_t *body_element = lxb_html_document_body_element(document);
+            if(body_element) {
+                lxb_dom_node_t *body_node = (lxb_dom_node_t *)body_element;
+                extract_text(body_node, txt);
+            }
+        }
+        lxb_html_document_destroy(document);
+    }
+}
+
+static void html_to_txt_tidy(std::string& html, std::string& txt) {
     
     TidyDoc tdoc = tidyCreate();
     TidyBuffer errbuf = {0};
@@ -616,10 +536,14 @@ static void html_to_txt(std::string& html, std::string& txt) {
     tidyBufFree(&errbuf);
 }
 
-static void rtf_to_html(std::string& rtf, std::string& text) {
+static void rtf_to_text(std::string& rtf, std::string& text) {
     
-        RtfReader::RtfString2HtmlString(text, rtf);
-//        RtfReader::RtfString2TextString(text, rtf);
+        RtfReader::RtfString2TextString(text, rtf);
+}
+
+static void rtf_to_html(std::string& rtf, std::string& html) {
+    
+        RtfReader::RtfString2HtmlString(html, rtf);
 }
 
 #if WITH_NATIVE_RTF_CONVERT
@@ -665,17 +589,24 @@ static void rtf_to_text_platform(HWND hwnd, std::string& rtf, std::string& text)
 }
 #endif
 
-static void document_to_json_msg(Document& document, std::string& text, bool rawText, HWND hwnd) {
-
-    //rtf -> html -> txt is problematic; only do html->txt or rtf->txt (html)
+static void document_to_json_msg(Document& document, std::string& text, bool rawText, bool usePlatform, bool useLexbor, HWND hwnd) {
     
     if((document.message.html.length() != 0) && (document.message.text.length() == 0)) {
-        html_to_txt(document.message.html, document.message.text);
+        if(useLexbor) {
+            html_to_txt_lexbor(document.message.html, document.message.text);
+        }else{
+            html_to_txt_tidy  (document.message.html, document.message.text);
+        }
     }
     
     if((document.message.rtf.length() != 0) && (document.message.text.length() == 0)) {
-        //rtf_to_html(document.message.rtf, document.message.text);
-        rtf_to_text_platform(hwnd, document.message.rtf, document.message.text);
+        if(usePlatform) {
+            rtf_to_text_platform(hwnd, document.message.rtf, document.message.text);
+        }else{
+            document.message.text=document.message.rtf;
+//            rtf_to_html         (      document.message.rtf, document.message.html);
+//            html_to_txt_tidy  (document.message.html, document.message.text);
+        }
     }
     
     if(rawText){
@@ -1519,6 +1450,8 @@ int main(int argc, OPTARG_T argv[]) {
     int ch;
     std::string text;
     bool rawText = false;
+    bool useLexbor = false;
+    bool usePlatform = true;//librtf is not good enough
     
     int codepage = 1252;
     
@@ -1551,6 +1484,12 @@ int main(int argc, OPTARG_T argv[]) {
                 break;
             case 'r':
                 rawText = true;
+                break;
+            case 'p':
+                usePlatform = true;
+                break;
+            case 'l':
+                useLexbor = true;
                 break;
             case 'h':
             default:
@@ -1591,7 +1530,7 @@ int main(int argc, OPTARG_T argv[]) {
             if (libolecf_file_get_root_item(file, &root, &error) == 1) {
                 process_root(document, root, codepage);
                 if(document.type == "msg"){
-                    document_to_json_msg(document, text, rawText, hwnd);
+                    document_to_json_msg(document, text, rawText, usePlatform, useLexbor, hwnd);
                 }
                 if(document.type == "ppt"){
                     document_to_json_ppt(document, text, rawText);
