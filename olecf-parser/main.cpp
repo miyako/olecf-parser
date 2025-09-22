@@ -1468,11 +1468,12 @@ int main(int argc, OPTARG_T argv[]) {
                 break;
             case '-':
             {
-                _fseek(stdin, 0, SEEK_END);
-                size_t len = (size_t)_ftell(stdin);
-                _fseek(stdin, 0, SEEK_SET);
-                msg_data.resize(len);
-                fread(msg_data.data(), 1, msg_data.size(), stdin);
+                std::vector<uint8_t> buf(BUFLEN);
+                size_t n;
+                
+                while ((n = fread(buf.data(), 1, buf.size(), stdin)) > 0) {
+                    msg_data.insert(msg_data.end(), buf.begin(), buf.begin() + n);
+                }
                 if(!create_temp_file_path(temp_input_path)){
                     FILE *f = _fopen(temp_input_path.c_str(), _wb);
                     if(f) {
