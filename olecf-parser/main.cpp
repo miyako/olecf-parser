@@ -616,40 +616,11 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
     }
     
     if(rawText){
-        text = "";
-        text += document.message.sender.name;
-        if (document.message.sender.name.length() != 0) {
-            text += "\r\n";
+        text = document.message.subject;
+        if(text.length() != 0) {
+            text += "\n";
         }
-        text += document.message.sender.address;
-        if (document.message.sender.address.length() != 0) {
-            text += "\r\n";
-        }
-        text += document.message.recipient.name;
-        if (document.message.recipient.name.length() != 0) {
-            text += "\r\n";
-        }
-        text += document.message.recipient.address;
-        if (document.message.recipient.address.length() != 0) {
-            text += "\r\n";
-        }
-        text += document.message.subject;
-        if (document.message.subject.length() != 0) {
-            text += "\r\n";
-        }
-        text += document.message.headers;
-        if (document.message.text.length() != 0) {
-            text += document.message.text;
-        }
-        else {
-            if (document.message.html.length() != 0) {
-                text += document.message.html;
-            }else{
-                if (document.message.rtf.length() != 0) {
-                    text += document.message.rtf;
-                }
-            }
-        }
+        text += document.message.text;
     }else{
         Json::Value documentNode(Json::objectValue);
         documentNode["type"] = document.type;
