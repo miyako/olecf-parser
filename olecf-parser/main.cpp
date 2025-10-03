@@ -503,7 +503,8 @@ static void html_to_txt_lexbor(std::string& html, std::string& txt) {
 static void html_to_txt_tidy(std::string& html, std::string& txt) {
     
     TidyDoc tdoc = tidyCreate();
-    TidyBuffer errbuf = {0};
+    TidyBuffer errbuf;
+    tidyBufInit(&errbuf);
     
     tidyOptSetBool(tdoc, TidyXhtmlOut, yes);
     tidyOptSetBool(tdoc, TidyXmlOut, no);
