@@ -113,7 +113,7 @@ static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
 static void usage(void)
 {
     fprintf(stderr, "Usage:  olecf-parser -r -i in -o out -\n\n");
-    fprintf(stderr, "text extractor for msg documents\n\n");
+    fprintf(stderr, "text extractor for msg,doc,ppt documents\n\n");
     fprintf(stderr, " -%c path        : %s\n", 'i' , "document to parse");
     fprintf(stderr, " -%c path        : %s\n", 'o' , "text output (default=stdout)");
     fprintf(stderr, " %c              : %s\n", '-' , "use stdin for input");
@@ -204,6 +204,12 @@ struct Slide {
 struct Document {
     std::string type;
     Message message;
+    uint32_t fcClx;
+    uint32_t lcbClx;
+    std::string docVersion;
+    std::string text;
+    uint16_t docLanguageId;
+    uint8_t fWhichTblStm;
     std::vector<Slide> slides;
 };
 
@@ -649,6 +655,22 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
     }
 }
 
+static void document_to_json_doc(Document& document, std::string& text, bool rawText) {
+    if(rawText){
+        text = document.text;
+    }else{
+        Json::Value documentNode(Json::objectValue);
+        documentNode["type"] = document.type;
+        documentNode["text"] = document.text;
+        documentNode["language"] = document.docLanguageId;
+        documentNode["version"] = document.docVersion;
+        
+        Json::StreamWriterBuilder writer;
+        writer["indentation"] = "";
+        text = Json::writeString(writer, documentNode);
+    }
+}
+
 static void document_to_json_ppt(Document& document, std::string& text, bool rawText) {
     
     if(rawText){
@@ -795,6 +817,62 @@ static DocumentAtom read_DocumentAtom(const uint8_t *p) {
     da.fShowComments = p[offset];
     
     return da;
+}
+
+void read_doc(Document& document, const uint8_t *stream, size_t stream_len, int codepage) {
+   
+    uint16_t wIdent = read_u16_le(stream);
+    if(wIdent == 0xA5EC) {
+        document.type = "doc";
+        uint16_t nFib = read_u16_le(stream + 0x02);
+        document.docLanguageId = read_u16_le(stream + 0x06);
+//        uint16_t pnNext = read_u16_le(stream + 0x08);
+        uint16_t ABCDEFGHIJKLM = read_u16_le(stream + 0x0A);
+//        bool fDot       = ABCDEFGHIJKLM & 0x0001;
+//        bool fGlsy      = ABCDEFGHIJKLM & 0x0002;
+//        bool fComplex   = ABCDEFGHIJKLM & 0x0004;
+//        bool fHasPic    = ABCDEFGHIJKLM & 0x0008;
+//        uint8_t cQuickSaves = (ABCDEFGHIJKLM & 0x00F0) >> 4;
+//        bool fEncrypted             = ABCDEFGHIJKLM & 0x0100;
+        document.fWhichTblStm       = (ABCDEFGHIJKLM & 0x0200) >> 9;
+//        bool fReadOnlyRecommended   = ABCDEFGHIJKLM & 0x0400;
+//        bool fWriteReservation      = ABCDEFGHIJKLM & 0x0800;
+//        bool fExtChar               = ABCDEFGHIJKLM & 0x1000;
+//        bool fLoadOverwrite         = ABCDEFGHIJKLM & 0x2000;
+//        bool fFarEast               = ABCDEFGHIJKLM & 0x4000;
+//        bool fObfuscation           = ABCDEFGHIJKLM & 0x8000;
+        document.fcClx = read_u32_le(stream + 0x01A2);
+        document.lcbClx = read_u32_le(stream + 0x01A6);
+        
+        switch (nFib) {
+            case 0x013F:
+                document.docVersion = "Word 2007";
+                break;
+            case 0x0112:
+                document.docVersion = "Word 2003";
+                break;
+            case 0x0101:
+                document.docVersion = "Word 2002";
+                break;
+            case 0x00D9:
+                document.docVersion = "Word 2000";
+                break;
+            case 0x00C1:
+                document.docVersion = "Word 97";
+                break;
+            case 0x00C0:
+                document.docVersion = "Word 97";
+                break;
+            case 0x00B0:
+                document.docVersion = "Word 95";
+                break;
+            case 0x00A5:
+                document.docVersion = "Word 6.0";
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void read_ppt(Document& document, const uint8_t *stream, size_t stream_len, int codepage) {
@@ -988,6 +1066,7 @@ static void process_root(Document& document,
         "_signatures",
         "\005SummaryInformation",
         "\005DocumentSummaryInformation",
+        "\001CompObj",
         "__substg1.0_65E30102",
         "__substg1.0_65E20102",
         "__substg1.0_80090048",
@@ -1084,6 +1163,10 @@ static void process_root(Document& document,
         "__substg1.0_0C250102"
     };
     
+    std::vector<uint8_t>doc_0table_buf(0);
+    std::vector<uint8_t>doc_1table_buf(0);
+    std::vector<uint8_t>document_buf(0);
+    
     int number_of_sub_items = 0;
     if(libolecf_item_get_number_of_sub_items(root, &number_of_sub_items, &error) == 1) {
         for (int i = 0; i < number_of_sub_items; ++i) {
@@ -1115,6 +1198,20 @@ static void process_root(Document& document,
 
                             std::vector<uint8_t>item_value_buf(size);
                             ssize_t len = libolecf_stream_read_buffer(sub_item, item_value_buf.data(), item_value_buf.size(), NULL);
+                            
+                            if(property == "WordDocument") {
+                                if(len != -1) {
+                                    read_doc(document, item_value_buf.data(), item_value_buf.size(), codepage);
+                                    document_buf = item_value_buf;
+                                }
+                            }
+                            
+                            if (property == "0Table") {
+                                doc_0table_buf = item_value_buf;
+                            }
+                            if (property == "1Table") {
+                                doc_1table_buf = item_value_buf;
+                            }
                             
                             if(property == "PowerPoint Document") {
                                 if(len != -1) {
@@ -1370,6 +1467,91 @@ static void process_root(Document& document,
         }
     }
     
+    if (document.type == "doc") {
+        
+        std::vector<uint8_t> clx;
+        if(document.fWhichTblStm == 1) {
+            if(doc_1table_buf.size() >= (document.fcClx + document.lcbClx)) {
+                clx.assign(
+                           doc_1table_buf.begin() + document.fcClx,
+                           doc_1table_buf.begin() + document.fcClx + document.lcbClx
+                );
+            }
+        }else{
+            if(doc_0table_buf.size() >= (document.fcClx + document.lcbClx)) {
+                clx.assign(
+                           doc_0table_buf.begin() + document.fcClx,
+                           doc_0table_buf.begin() + document.fcClx + document.lcbClx
+                );
+            }
+        }
+        
+        struct Piece {
+            uint32_t cpStart;
+            uint32_t cpEnd;
+            uint32_t offset;
+            bool isUnicode;
+        };
+        
+        std::vector<Piece> pieces;
+        
+        // Find 0x02 byte marking the start of Piece Table
+        auto it = std::find(clx.begin(), clx.end(), 0x02);
+        if (it != clx.end()) {
+            size_t offset = std::distance(clx.begin(), it);
+            offset += sizeof(uint8_t);
+            size_t lcb = read_u32_le(clx.data() + offset);
+            offset += sizeof(uint32_t);
+            size_t pcd_count = lcb / 12;
+            size_t cp_count = pcd_count + 1;
+            if(lcb == (pcd_count * 8) + (cp_count * 4)) {
+                std::vector<uint32_t> cps(cp_count);
+                for (size_t i = 0; i < cp_count; ++i) {
+                    cps[i] = read_u32_le(clx.data() + offset);
+                    offset += sizeof(uint32_t);
+                }
+                for (size_t i = 0; i < pcd_count; ++i) {
+                    uint16_t flags = read_u16_le(clx.data() + offset);
+                    offset += sizeof(uint16_t);
+                    uint32_t fc = read_u32_le(clx.data() + offset);
+                    offset += sizeof(uint32_t);
+                    uint16_t prm0 = read_u16_le(clx.data() + offset);
+                    offset += sizeof(uint16_t);
+                    uint32_t file_offset = fc & 0x3FFFFFFF;
+                    bool is_unicode = (fc >> 30) & 0x1;
+                    if(is_unicode) {
+                        file_offset = file_offset/2;
+                    }
+                    Piece piece;
+                    piece.isUnicode = is_unicode;
+                    piece.cpStart = cps[i];
+                    piece.cpEnd = cps[i + 1];
+                    piece.offset = file_offset;
+                    pieces.push_back(piece);
+                }
+//                std::cerr << "got " << pieces.size() << " pieces!" << std::endl;
+
+                for (const auto& piece : pieces) {
+                uint32_t charCount = piece.cpEnd - piece.cpStart;
+                uint32_t byteCount = piece.isUnicode ? charCount * 2 : charCount;
+                if (piece.offset + byteCount > document_buf.size()) {
+//                std::cerr << "Piece out of bounds\n";
+                continue;
+                }
+                const uint8_t* dataPtr = document_buf.data() + piece.offset;
+                    std::string u8;
+                    if (piece.isUnicode) {
+                        std::string ansi = std::string((const char*)dataPtr, byteCount);
+                        ansi_to_utf8(ansi, u8, codepage);
+                    } else {
+                        utf16_to_utf8((const uint8_t *)dataPtr, byteCount, u8);
+                    }
+                    document.text += u8;
+                }
+            }
+        }
+    }
+    
     message.sender = sender;
     message.recipient = recipient;
     document.message = message;
@@ -1512,6 +1694,9 @@ int main(int argc, OPTARG_T argv[]) {
                 }
                 if(document.type == "ppt"){
                     document_to_json_ppt(document, text, rawText);
+                }
+                if(document.type == "doc"){
+                    document_to_json_doc(document, text, rawText);
                 }
             }else{
                 std::cerr << "Failed to get MSG root item!" << std::endl;
