@@ -57,7 +57,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/miyako/Desktop/2.doc"
+            argument = "/Users/miyako/Desktop/a.doc"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

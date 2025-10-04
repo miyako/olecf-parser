@@ -48,6 +48,49 @@ CFStringEncoding codepage_to_cfencoding(int cp) {
 }
 #endif
 
+static std::string filter_control_characters(const std::string& input) {
+    
+    std::string output;
+    
+    bool inField = false;
+    
+    for (size_t i = 0; i < input.length(); ++i) {
+        unsigned char ch = input[i];
+        
+        // Skip Word field codes: 0x13, 0x14, 0x15
+        if (ch == 0x13) {  // Field start
+            inField = true;
+            continue;
+        }
+        if (ch == 0x14) {  // Field separator
+            continue;
+        }
+        if (ch == 0x15) {  // Field end
+            inField = false;
+            continue;
+        }
+        
+        // Optionally skip text inside fields
+        if (inField) continue;
+        
+        // Convert carriage return (0x0D) to newline
+        if (ch == '\r') {
+            output += '\n';
+            continue;
+        }
+
+        // Skip control characters under 0x20 except newline/tab
+        if (ch < 0x20 && ch != '\n' && ch != '\t') {
+            continue;
+        }
+        
+        output += ch;
+    }
+    
+    return output;
+    
+}
+
 static void utf16_to_utf8(const uint8_t *u16data, size_t u16size, std::string& u8) {
     
 #ifdef __APPLE__
@@ -77,14 +120,12 @@ static void utf16_to_utf8(const uint8_t *u16data, size_t u16size, std::string& u
 static void ansi_to_utf8(std::string& ansi, std::string& u8, int cp) {
     
 #ifdef __APPLE__
-    CFDataRef data = CFDataCreate(kCFAllocatorDefault,
-                                      reinterpret_cast<const UInt8*>(ansi.data()),
-                                      ansi.size());
-    CFStringRef str = CFStringCreateFromExternalRepresentation(
-                                                               kCFAllocatorDefault,
-                                                               data,
-                                                               codepage_to_cfencoding(cp));
-    CFRelease(data);
+    CFStringEncoding encoding = codepage_to_cfencoding(cp);
+    CFStringRef str = CFStringCreateWithBytes(kCFAllocatorDefault,
+                                              reinterpret_cast<const UInt8*>(ansi.data()),
+                                              ansi.size(),
+                                              encoding,
+                                              false);
     if(str) {
         CFIndex len = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str),
                                                         kCFStringEncodingUTF8);
@@ -1490,7 +1531,7 @@ static void process_root(Document& document,
             uint32_t cpStart;
             uint32_t cpEnd;
             uint32_t offset;
-            bool isUnicode;
+            bool fCompressed;
         };
         
         std::vector<Piece> pieces;
@@ -1518,12 +1559,12 @@ static void process_root(Document& document,
                     uint16_t prm0 = read_u16_le(clx.data() + offset);
                     offset += sizeof(uint16_t);
                     uint32_t file_offset = fc & 0x3FFFFFFF;
-                    bool is_unicode = (fc >> 30) & 0x1;
-                    if(is_unicode) {
+                    bool fCompressed = (fc >> 30) & 0x1;//actually, isCompressed, i.e. opposite of is_unicode
+                    if(fCompressed) {
                         file_offset = file_offset/2;
                     }
                     Piece piece;
-                    piece.isUnicode = is_unicode;
+                    piece.fCompressed = fCompressed;
                     piece.cpStart = cps[i];
                     piece.cpEnd = cps[i + 1];
                     piece.offset = file_offset;
@@ -1533,14 +1574,14 @@ static void process_root(Document& document,
 
                 for (const auto& piece : pieces) {
                 uint32_t charCount = piece.cpEnd - piece.cpStart;
-                uint32_t byteCount = piece.isUnicode ? charCount * 2 : charCount;
+                uint32_t byteCount = piece.fCompressed ? charCount : charCount * 2;
                 if (piece.offset + byteCount > document_buf.size()) {
 //                std::cerr << "Piece out of bounds\n";
                 continue;
                 }
                 const uint8_t* dataPtr = document_buf.data() + piece.offset;
                     std::string u8;
-                    if (piece.isUnicode) {
+                    if (piece.fCompressed) {
                         std::string ansi = std::string((const char*)dataPtr, byteCount);
                         ansi_to_utf8(ansi, u8, codepage);
                     } else {
