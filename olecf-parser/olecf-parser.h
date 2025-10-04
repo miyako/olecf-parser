@@ -18,6 +18,15 @@
 
 #include "libolecf.h"
 
+#define WORDDOCUMENT_STREAM "WordDocument"
+#define TABLE_STREAM_0 "0Table"
+#define TABLE_STREAM_1 "1Table"
+
+#define FIB_BASE_SIZE 32
+#define FIB_OFFSET_FWHICHTBLSTM 0x0A
+#define FIB_OFFSET_FCCLX 0x01A2
+#define FIB_OFFSET_LCBCLX 0x01A6
+
 #if defined(_WIN32)
 #include <windows.h>
 #include <richedit.h>
