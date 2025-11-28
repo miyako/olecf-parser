@@ -20,30 +20,45 @@ text extractor for msg,doc,ppt documents
  -c             : ansi codepage (default=1252)
 ```
 
-## output (JSON)
+## JSON (MSG)
 
-```
-{
-    "type: "msg",
-    "message":
-    {
-        "sender": {"name": "name", "address": "address"},
-        "recipient": {"name": "name", "address": "address"},
-        "subject": "subject",
-        "text": "text",
-        "rtf": "rtf",
-        "html": "html",
-        "headers": "headers"
-    }
-}
-```
+|Property|Level|Type|Description|
+|-|-|-|-|
+|document|0|||
+|document.type|0|Text||
+|document.meta|0| Object ||
+|document.meta.subject|1| Text ||
+|document.meta.headers|1| Text ||
+|document.meta.sender|1| Object ||
+|document.meta.recipient|1| Object ||
+|document.pages|0|Array||
+|document.pages[].paragraphs|1|Array||
+|document.pages[].paragraphs[].text|2|Text||
+|document.pages[].paragraphs[].html|2|Text||
+|document.pages[].paragraphs[].rtf|2|Text||
 
-```
-{
-    "type: "ppt",
-    "slides":
-    [
-        "text": ["text", "text", "text"]
-    ]
-}
-```
+## JSON (PPT)
+
+|Property|Level|Type|Description|
+|-|-|-|-|
+|document|0|||
+|document.type|0|Text||
+|document.pages|0|Array|=slides|
+|document.pages[].paragraphs|1|Array||
+|document.pages[].paragraphs[].text|2|Text||
+
+## JSON (DOC)
+
+|Property|Level|Type|Description|
+|-|-|-|-|
+|document|0|||
+|document.type|0|Text||
+|document.meta|0| Object ||
+|document.meta.language|1| Text ||
+|document.meta.version|1| Text ||
+|document.pages|0|Array||
+|document.pages[].paragraphs|1|Array||
+|document.pages[].paragraphs[].text|2|Text||
+
+
+
