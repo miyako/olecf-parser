@@ -8,17 +8,16 @@
 * see [libolecf](https://github.com/libyal/libolecf/blob/main/COPYING) for the licensing of **libolecf** (LGPL-3.0).
  
 # olecf-parser
-CLI tool to extract text from MSG, PPT
-
-## usage
+CLI tool to extract text from MSG, DOC, PPT
 
 ```
-olecf-parser -i example.msg -o example.json
+text extractor for msg,doc,ppt documents
 
- -i path    : document to parse
- -o path    : text output (default=stdout)
- -          : use stdin for input
- -r         : raw text output (default=json)
+ -i path        : document to parse
+ -o path        : text output (default=stdout)
+ -              : use stdin for input
+ -r             : raw text output (default=json)
+ -c             : ansi codepage (default=1252)
 ```
 
 ## output (JSON)
