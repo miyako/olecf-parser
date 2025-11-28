@@ -8,43 +8,57 @@
 * see [libolecf](https://github.com/libyal/libolecf/blob/main/COPYING) for the licensing of **libolecf** (LGPL-3.0).
  
 # olecf-parser
-CLI tool to extract text from MSG, PPT
-
-## usage
+CLI tool to extract text from MSG, DOC, PPT
 
 ```
-olecf-parser -i example.msg -o example.json
+text extractor for msg,doc,ppt documents
 
- -i path    : document to parse
- -o path    : text output (default=stdout)
- -          : use stdin for input
- -r         : raw text output (default=json)
-```
-
-## output (JSON)
-
-```
-{
-    "type: "msg",
-    "message":
-    {
-        "sender": {"name": "name", "address": "address"},
-        "recipient": {"name": "name", "address": "address"},
-        "subject": "subject",
-        "text": "text",
-        "rtf": "rtf",
-        "html": "html",
-        "headers": "headers"
-    }
-}
+ -i path        : document to parse
+ -o path        : text output (default=stdout)
+ -              : use stdin for input
+ -r             : raw text output (default=json)
+ -c             : ansi codepage (default=1252)
 ```
 
-```
-{
-    "type: "ppt",
-    "slides":
-    [
-        "text": ["text", "text", "text"]
-    ]
-}
-```
+## JSON (MSG)
+
+|Property|Level|Type|Description|
+|-|-|-|-|
+|document|0|||
+|document.type|0|Text||
+|document.meta|0| Object ||
+|document.meta.subject|1| Text ||
+|document.meta.headers|1| Text ||
+|document.meta.sender|1| Object ||
+|document.meta.recipient|1| Object ||
+|document.pages|0|Array||
+|document.pages[].paragraphs|1|Array||
+|document.pages[].paragraphs[].text|2|Text||
+|document.pages[].paragraphs[].html|2|Text||
+|document.pages[].paragraphs[].rtf|2|Text||
+
+## JSON (PPT)
+
+|Property|Level|Type|Description|
+|-|-|-|-|
+|document|0|||
+|document.type|0|Text||
+|document.pages|0|Array|=slides|
+|document.pages[].paragraphs|1|Array||
+|document.pages[].paragraphs[].text|2|Text||
+
+## JSON (DOC)
+
+|Property|Level|Type|Description|
+|-|-|-|-|
+|document|0|||
+|document.type|0|Text||
+|document.meta|0| Object ||
+|document.meta.language|1| Text ||
+|document.meta.version|1| Text ||
+|document.pages|0|Array||
+|document.pages[].paragraphs|1|Array||
+|document.pages[].paragraphs[].text|2|Text||
+
+
+
