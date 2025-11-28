@@ -672,24 +672,28 @@ static void document_to_json_msg(Document& document, std::string& text, bool raw
         Json::Value documentNode(Json::objectValue);
         documentNode["type"] = document.type;
         
-        Json::Value messageNode(Json::objectValue);
-        messageNode["subject"] = document.message.subject;
-        messageNode["text"] = document.message.text;
-        messageNode["html"] = document.message.html;
-        messageNode["rtf"] = document.message.rtf;
-        messageNode["headers"] = document.message.headers;
-        
+        documentNode["pages"] = Json::arrayValue;
+        Json::Value metaNode(Json::objectValue);
+        metaNode["subject"] = document.message.subject;
+        metaNode["headers"] = document.message.headers;
         Json::Value senderNode(Json::objectValue);
         Json::Value recipientNode(Json::objectValue);
         senderNode["name"] = document.message.sender.name;
         senderNode["address"] = document.message.sender.address;
         recipientNode["name"] = document.message.recipient.name;
         recipientNode["address"] = document.message.recipient.address;
-
-        documentNode["sender"] = senderNode;
-        documentNode["recipient"] = recipientNode;
-        documentNode["message"] = messageNode;
+        metaNode["sender"] = senderNode;
+        metaNode["recipient"] = recipientNode;
         
+        documentNode["meta"] = metaNode;
+        Json::Value pageNode(Json::objectValue);
+        Json::Value paragraphNode(Json::objectValue);
+        paragraphNode["text"] = document.message.text;
+        paragraphNode["html"] = document.message.html;
+        paragraphNode["rtf"] = document.message.rtf;
+        pageNode["paragraphs"].append(paragraphNode);
+        documentNode["pages"].append(pageNode);
+
         Json::StreamWriterBuilder writer;
         writer["indentation"] = "";
         text = Json::writeString(writer, documentNode);
@@ -702,9 +706,16 @@ static void document_to_json_doc(Document& document, std::string& text, bool raw
     }else{
         Json::Value documentNode(Json::objectValue);
         documentNode["type"] = document.type;
-        documentNode["text"] = document.text;
-        documentNode["language"] = document.docLanguageId;
-        documentNode["version"] = document.docVersion;
+        documentNode["pages"] = Json::arrayValue;
+        Json::Value metaNode(Json::objectValue);
+        metaNode["language"] = document.docLanguageId;
+        metaNode["version"] = document.docVersion;
+        documentNode["meta"] = metaNode;
+        Json::Value pageNode(Json::objectValue);
+        Json::Value paragraphNode(Json::objectValue);
+        paragraphNode["text"] = document.text;
+        pageNode["paragraphs"].append(paragraphNode);
+        documentNode["pages"].append(pageNode);
         
         Json::StreamWriterBuilder writer;
         writer["indentation"] = "";
@@ -722,24 +733,27 @@ static void document_to_json_ppt(Document& document, std::string& text, bool raw
             }
         }
     }else{
-        Json::Value documentNode(Json::objectValue);
-        documentNode["type"] = document.type;
-        
-        Json::Value slidesNode(Json::arrayValue);
-        
-        for(const auto &slide : document.slides) {
-            Json::Value slideNode(Json::objectValue);
-            Json::Value textNode(Json::arrayValue);
-            for(const auto &text : slide.text) {
-                textNode.append(text);
-            }
-            slideNode["text"] = textNode;
-            slidesNode.append(slideNode);
-        }
-        documentNode["slides"] = slidesNode;
-        
         Json::StreamWriterBuilder writer;
         writer["indentation"] = "";
+        Json::Value documentNode(Json::objectValue);
+        documentNode["type"] = document.type;
+        documentNode["pages"] = Json::arrayValue;
+                
+        for(const auto &slide : document.slides) {
+            Json::Value pageNode(Json::objectValue);
+            pageNode["paragraphs"] = Json::arrayValue;
+            
+            Json::Value paragraphNode(Json::objectValue);
+            std::string _text;
+            for(const auto &text : slide.text) {
+                _text += text;
+            }
+            if(_text.length() != 0){
+                paragraphNode["text"] = _text;
+                pageNode["paragraphs"].append(paragraphNode);
+            }
+            documentNode["pages"].append(pageNode);
+        }
         text = Json::writeString(writer, documentNode);
     }
 }
